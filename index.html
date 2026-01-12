@@ -147,6 +147,18 @@
 
         .summary-box { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .summary-box h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        
+        /* Visual Chart Styles */
+        .distribution-chart {
+            margin-top: 1.5rem; background: #f0f0f0; border-radius: 6px; overflow: hidden; display: flex; height: 28px; border: 1px solid var(--border);
+        }
+        .dist-bar { display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white; transition: width 0.4s ease; }
+        .dist-phys { background: #ee0000; }
+        .dist-virt { background: #0066cc; }
+        .chart-legend { display: flex; gap: 20px; margin: 10px 0; font-size: 0.8rem; justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-box { width: 14px; height: 14px; border-radius: 2px; }
+
         .bom-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
         .bom-table th { text-align: left; background: #f0f0f0; padding: 10px; border: 1px solid var(--border); }
         .bom-table td { padding: 10px; border: 1px solid var(--border); }
@@ -165,7 +177,7 @@
         <button class="btn btn-primary" id="add-cluster-btn" style="background: #333;">+ Add Cluster</button>
         <button id="share-btn" class="btn" style="background: #333; color: white;">Share Link</button>
         <button id="toggle-settings" style="background:none; border:none; cursor:pointer;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
     </div>
 </header>
@@ -215,17 +227,16 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v16_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v17_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v16_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v17_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
-    // CSV Processing
     document.getElementById('csv-upload').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -255,7 +266,6 @@
         state.skus = newSkus;
     }
 
-    // Core Actions
     function addCluster() { state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: "OpenShift Container Platform", defaultArch: "Physical", nodes: [] }); save(); render(); }
     function deleteCluster(id) { if (state.clusters.length > 1) { state.clusters = state.clusters.filter(c => c.id !== id); save(); render(); } }
     function updateCluster(id, field, val) { const c = state.clusters.find(c => c.id === id); if (c) { c[field] = val; save(); render(); } }
@@ -347,34 +357,54 @@
     function renderGlobalSummaries() {
         const bom1Container = document.getElementById('bom-1-container');
         const summaryData = {};
+        let totalPhysAll = 0;
+        let totalVirtAll = 0;
+
         EDITIONS.forEach(ed => { summaryData[ed] = { phys: 0, virt: 0 }; });
 
         state.clusters.forEach(c => {
             c.nodes.forEach(n => {
                 if (n.isWorker) {
-                    if (n.arch === 'Physical') summaryData[c.edition].phys += parseInt(n.cores || 0);
-                    if (n.arch === 'Virtual') summaryData[c.edition].virt += parseInt(n.cores || 0);
+                    if (n.arch === 'Physical') {
+                        summaryData[c.edition].phys += parseInt(n.cores || 0);
+                        totalPhysAll += parseInt(n.cores || 0);
+                    }
+                    if (n.arch === 'Virtual') {
+                        summaryData[c.edition].virt += parseInt(n.cores || 0);
+                        totalVirtAll += parseInt(n.cores || 0);
+                    }
                 }
             });
         });
 
-        let html = `<table class="bom-table"><thead><tr><th>Edition</th><th>SKU</th><th>Qty</th><th>Net Price</th></tr></thead><tbody>`;
-        let grandTotal = 0;
+        const grandTotalCores = totalPhysAll + totalVirtAll;
+        const physPct = grandTotalCores > 0 ? (totalPhysAll / grandTotalCores * 100) : 0;
+        const virtPct = grandTotalCores > 0 ? (totalVirtAll / grandTotalCores * 100) : 0;
 
+        let html = `
+            <div class="distribution-chart">
+                <div class="dist-bar dist-phys" style="width: ${physPct}%">${physPct > 12 ? 'Phys' : ''}</div>
+                <div class="dist-bar dist-virt" style="width: ${virtPct}%">${virtPct > 12 ? 'Virt' : ''}</div>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item"><div class="legend-box dist-phys"></div> Physical Cores (${totalPhysAll})</div>
+                <div class="legend-item"><div class="legend-box dist-virt"></div> Virtual Cores (${totalVirtAll})</div>
+            </div>
+            <table class="bom-table"><thead><tr><th>Edition</th><th>SKU</th><th>Qty</th><th>Net Price</th></tr></thead><tbody>`;
+        
+        let grandTotal = 0;
         Object.keys(summaryData).forEach(edition => {
             const data = summaryData[edition];
             if (data.phys === 0 && data.virt === 0) return;
             const sku = state.skus.find(s => s.edition === edition && s.isBM === false);
-            const physQty = Math.ceil(data.phys / 2);
-            const virtQty = Math.ceil(data.virt / 4);
-            const totalQty = physQty + virtQty;
+            const qty = Math.ceil(data.phys / 2) + Math.ceil(data.virt / 4);
             let priceDisplay = "$0.00";
             if (sku) {
-                const rowTotal = totalQty * (sku.msrp * (1 - (sku.discount / 100)));
+                const rowTotal = qty * (sku.msrp * (1 - (sku.discount / 100)));
                 grandTotal += rowTotal;
                 priceDisplay = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(rowTotal);
             }
-            html += `<tr><td><strong>${edition}</strong><br><small>${data.phys}P / ${data.virt}V Cores</small></td><td>${sku ? sku.code : 'Missing SKU'}</td><td>${totalQty}</td><td>${priceDisplay}</td></tr>`;
+            html += `<tr><td><strong>${edition}</strong><br><small>${data.phys}P / ${data.virt}V Cores</small></td><td>${sku ? sku.code : 'Missing SKU'}</td><td>${qty}</td><td>${priceDisplay}</td></tr>`;
         });
 
         html += `<tr class="total-row"><td colspan="3" style="text-align:right">Total Net:</td><td>${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(grandTotal)}</td></tr></tbody></table>`;
