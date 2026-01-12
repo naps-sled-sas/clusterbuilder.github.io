@@ -13,6 +13,7 @@
             --border: #d2d2d2;
             --warning: #cc0000;
             --success: #28a745;
+            --cp-dark: #3c3f42;
         }
 
         body {
@@ -92,27 +93,13 @@
         .alert-text { color: var(--warning); font-weight: bold; }
 
         .tooltip {
-            display: inline-block;
-            margin-left: 5px;
-            cursor: help;
-            background: #666;
-            color: #fff;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            text-align: center;
-            font-size: 10px;
-            line-height: 14px;
-            font-weight: bold;
-            position: relative;
+            display: inline-block; margin-left: 5px; cursor: help; background: #666; color: #fff; width: 14px; height: 14px;
+            border-radius: 50%; text-align: center; font-size: 10px; line-height: 14px; font-weight: bold; position: relative;
         }
 
         .tooltip:hover::after {
             content: "Quorum requires 3 or 5 Control Plane nodes for cluster stability.";
-            position: absolute;
-            left: 20px;
-            top: 0;
-            background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
+            position: absolute; left: 20px; top: 0; background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
 
         .cluster-name-input {
@@ -123,40 +110,38 @@
 
         .node-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
             gap: 1.5rem; margin-top: 1.5rem; padding: 1rem; border: 2px dashed var(--border); border-radius: 8px;
         }
 
-        .node-card { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 15px; position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .node-actions { position: absolute; top: 8px; right: 8px; }
+        .node-card { background: #fff; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .node-card.is-cp { border-color: var(--cp-dark); }
+        .node-card.is-cp .node-header { background: var(--cp-dark); color: white; }
+        .node-card.is-cp svg { stroke: white; }
+
+        .node-header { padding: 10px; text-align: center; background: #f8f8f8; border-bottom: 1px solid #eee; position: relative; }
+        .node-body { padding: 15px; }
+
+        .node-actions { position: absolute; top: 5px; right: 5px; z-index: 2; }
         .node-actions button { background: none; border: none; color: #cc0000; cursor: pointer; font-size: 1.2rem; }
+        .node-card.is-cp .node-actions button { color: #ff9b9b; }
 
         .node-input-group { font-size: 0.85rem; margin-top: 10px; }
         label.group-label { font-weight: bold; display: block; margin-bottom: 2px; color: #444; }
         
-        input[type="number"], .table-input, select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-top: 4px; box-sizing: border-box; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-top: 4px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; min-height: 40px; font-size: 0.8rem; }
 
-        .global-summary-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-top: 3rem;
-            border-top: 2px solid #000;
-            padding-top: 2rem;
-        }
-
+        /* Global Summary Styles */
+        .global-summary-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; border-top: 2px solid #000; padding-top: 2rem; }
         .summary-box { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 2px solid transparent; transition: all 0.3s ease; position: relative; }
         .summary-box h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; font-size: 1.1rem; display: flex; align-items: center; justify-content: space-between; }
-        
         .summary-box.recommended { border-color: var(--success); transform: scale(1.02); z-index: 5; }
         .recommendation-badge { display: none; background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; text-transform: uppercase; }
         .recommended .recommendation-badge { display: block; }
-
         .savings-callout { font-size: 0.8rem; color: var(--success); font-weight: bold; margin-top: 10px; display: block; }
 
-        .distribution-chart {
-            margin-top: 1rem; background: #f0f0f0; border-radius: 6px; overflow: hidden; display: flex; height: 28px; border: 1px solid var(--border);
-        }
+        .distribution-chart { margin-top: 1rem; background: #f0f0f0; border-radius: 6px; overflow: hidden; display: flex; height: 28px; border: 1px solid var(--border); }
         .dist-bar { display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white; transition: width 0.4s ease; }
         .dist-phys { background: #ee0000; }
         .dist-virt { background: #0066cc; }
@@ -232,13 +217,13 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v21_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v23_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v21_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v23_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
@@ -272,28 +257,49 @@
     }
 
     function addCluster() { state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: "OpenShift Container Platform", defaultArch: "Physical", nodes: [] }); save(); render(); }
+    
+    function cloneCluster(id) {
+        const target = state.clusters.find(c => c.id === id);
+        if (target) {
+            const newCluster = JSON.parse(JSON.stringify(target));
+            newCluster.id = getNewId('c');
+            newCluster.name += " (Copy)";
+            newCluster.nodes = newCluster.nodes.map(n => ({ ...n, id: getNewId('n') }));
+            state.clusters.push(newCluster);
+            save(); render();
+        }
+    }
+
     function deleteCluster(id) { if (state.clusters.length > 1) { state.clusters = state.clusters.filter(c => c.id !== id); save(); render(); } }
     function updateCluster(id, field, val) { const c = state.clusters.find(c => c.id === id); if (c) { c[field] = val; save(); render(); } }
     
     function addNode(clusterId) {
         const c = state.clusters.find(c => c.id === clusterId);
-        if (c) { c.nodes.push({ id: getNewId('n'), isWorker: true, isControlPlane: false, isInfra: false, arch: c.defaultArch, cores: 16 }); save(); render(); }
+        if (c) { 
+            c.nodes.push({ 
+                id: getNewId('n'), 
+                isWorker: true, isControlPlane: false, isInfra: false, 
+                arch: c.defaultArch, cores: 16, qty: 1, notes: "" 
+            }); 
+            save(); render(); 
+        }
     }
 
-    // UPDATED: Mutual exclusivity fix
     function updateNode(clusterId, nodeId, field, val) {
         const c = state.clusters.find(c => c.id === clusterId);
         const n = c?.nodes.find(n => n.id === nodeId);
         if (n) {
-            if (field === 'cores') { let v = parseInt(val) || 2; v = Math.max(2, Math.min(128, v)); n.cores = v % 2 !== 0 ? v - 1 : v; }
-            else if (field === 'isInfra' && val === true) { 
-                n.isInfra = true; 
-                n.isWorker = false; // Only uncheck Worker
+            if (field === 'cores' || field === 'qty') { 
+                let v = parseInt(val) || 1;
+                if (field === 'cores') {
+                    v = Math.max(2, Math.min(128, v));
+                    n.cores = v % 2 !== 0 ? v - 1 : v;
+                } else {
+                    n.qty = Math.max(1, v);
+                }
             }
-            else if (field === 'isWorker' && val === true) { 
-                n.isWorker = true; 
-                n.isInfra = false; // Only uncheck Infra
-            }
+            else if (field === 'isInfra' && val === true) { n.isInfra = true; n.isWorker = false; }
+            else if (field === 'isWorker' && val === true) { n.isWorker = true; n.isInfra = false; }
             else { n[field] = val; }
             save(); render();
         }
@@ -309,11 +315,13 @@
         wrapper.innerHTML = '';
 
         state.clusters.forEach(cluster => {
-            const cps = cluster.nodes.filter(n => n.isControlPlane).length;
-            const infras = cluster.nodes.filter(n => n.isInfra).length;
-            const workers = cluster.nodes.filter(n => n.isWorker).length;
-            const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && n.isWorker).reduce((s, n) => s + parseInt(n.cores), 0);
-            const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && n.isWorker).reduce((s, n) => s + parseInt(n.cores), 0);
+            const cps = cluster.nodes.filter(n => n.isControlPlane).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const infras = cluster.nodes.filter(n => n.isInfra).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const workers = cluster.nodes.filter(n => n.isWorker).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            
+            // Calc entitled cores with quantity multiplier
+            const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && n.isWorker).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
+            const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && n.isWorker).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
 
             const cpIsInvalid = (cps !== 3 && cps !== 5);
             const div = document.createElement('div');
@@ -322,7 +330,7 @@
                 <div class="cluster-header">
                     <div class="cluster-main-meta">
                         <input type="text" class="cluster-name-input" value="${cluster.name}" onchange="updateCluster('${cluster.id}', 'name', this.value)">
-                        <div style="display:flex; gap:10px;"><button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Add Node</button><button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete Cluster</button></div>
+                        <div style="display:flex; gap:10px;"><button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Add Node</button><button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone Cluster</button><button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete Cluster</button></div>
                     </div>
                     <div class="cluster-controls">
                         <label class="group-label">Edition</label>
@@ -341,24 +349,31 @@
             `;
             const grid = div.querySelector('.node-grid');
             if (cluster.nodes.length === 0) grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999; padding: 20px;">No nodes defined.</div>';
+            
             cluster.nodes.forEach(node => {
                 const nodeEl = document.createElement('div');
-                nodeEl.className = 'node-card';
+                nodeEl.className = 'node-card' + (node.isControlPlane ? ' is-cp' : '');
                 nodeEl.innerHTML = `
                     <div class="node-actions"><button onclick="deleteNode('${cluster.id}', '${node.id}')">&times;</button></div>
-                    <div style="text-align:center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 10px;">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5">
+                    <div class="node-header">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5">
                             <rect x="2" y="2" width="20" height="8" rx="1"></rect><rect x="2" y="14" width="20" height="8" rx="1"></rect>
-                            <circle cx="6" cy="6" r="0.5" fill="currentColor"></circle><circle cx="6" cy="18" r="0.5" fill="currentColor"></circle>
                         </svg>
+                        <div style="font-size: 0.6rem; font-weight: bold; margin-top: 2px;">${node.isControlPlane ? 'CONTROL PLANE' : 'NODE'}</div>
                     </div>
-                    <div class="node-input-group"><label class="group-label">Roles</label><div style="display:flex; flex-direction: column; gap:5px; font-size:0.8rem;">
-                        <label><input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"> Worker</label>
-                        <label><input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"> Infra</label>
-                        <label><input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"> Control Plane</label>
-                    </div></div>
-                    <div class="node-input-group"><label class="group-label">Architecture</label><select onchange="updateNode('${cluster.id}', '${node.id}', 'arch', this.value)"><option value="Physical" ${node.arch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${node.arch === 'Virtual' ? 'selected' : ''}>Virtual</option></select></div>
-                    <div class="node-input-group"><label class="group-label">Core Count</label><input type="number" value="${node.cores}" step="2" onchange="updateNode('${cluster.id}', '${node.id}', 'cores', this.value)"></div>
+                    <div class="node-body">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div class="node-input-group"><label class="group-label">Quantity</label><input type="number" value="${node.qty || 1}" min="1" onchange="updateNode('${cluster.id}', '${node.id}', 'qty', this.value)"></div>
+                            <div class="node-input-group"><label class="group-label">Cores/Node</label><input type="number" value="${node.cores}" step="2" onchange="updateNode('${cluster.id}', '${node.id}', 'cores', this.value)"></div>
+                        </div>
+                        <div class="node-input-group"><label class="group-label">Roles</label><div style="display:flex; flex-direction: column; gap:3px; font-size:0.75rem;">
+                            <label><input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"> Worker</label>
+                            <label><input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"> Infra</label>
+                            <label><input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"> Control Plane</label>
+                        </div></div>
+                        <div class="node-input-group"><label class="group-label">Architecture</label><select onchange="updateNode('${cluster.id}', '${node.id}', 'arch', this.value)"><option value="Physical" ${node.arch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${node.arch === 'Virtual' ? 'selected' : ''}>Virtual</option></select></div>
+                        <div class="node-input-group"><label class="group-label">Notes</label><textarea placeholder="e.g. GPU, DB Cluster..." onchange="updateNode('${cluster.id}', '${node.id}', 'notes', this.value)">${node.notes || ""}</textarea></div>
+                    </div>
                 `;
                 grid.appendChild(nodeEl);
             });
@@ -381,13 +396,15 @@
         state.clusters.forEach(c => {
             c.nodes.forEach(n => {
                 if (n.isWorker) {
+                    const nodeQty = parseInt(n.qty) || 1;
+                    const nodeCores = parseInt(n.cores) || 0;
                     if (n.arch === 'Physical') {
-                        summaryData[c.edition].physCores += parseInt(n.cores || 0);
-                        summaryData[c.edition].physNodes += 1;
-                        totalPhysAll += parseInt(n.cores || 0);
+                        summaryData[c.edition].physCores += (nodeCores * nodeQty);
+                        summaryData[c.edition].physNodes += nodeQty;
+                        totalPhysAll += (nodeCores * nodeQty);
                     } else {
-                        summaryData[c.edition].virtCores += parseInt(n.cores || 0);
-                        totalVirtAll += parseInt(n.cores || 0);
+                        summaryData[c.edition].virtCores += (nodeCores * nodeQty);
+                        totalVirtAll += (nodeCores * nodeQty);
                     }
                 }
             });
@@ -419,11 +436,13 @@
             const skuV = state.skus.find(s => s.edition === ed && s.isBM === false);
             const skuBM = state.skus.find(s => s.edition === ed && s.isBM === true);
             
+            // Option 1: Core based (Phys/2 + Virt/4)
             const qty1 = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
             let p1 = skuV ? qty1 * (skuV.msrp * (1 - (skuV.discount / 100))) : 0;
             total1 += p1;
             html1 += `<tr><td><strong>${ed}</strong></td><td>${skuV ? skuV.code : 'N/A'}</td><td>${qty1}</td><td>${fmt(p1)}</td></tr>`;
 
+            // Option 2: BM node based (PhysNodes + Virt/4)
             const qtyBM = d.physNodes;
             const qtyV = Math.ceil(d.virtCores / 4);
             let p2 = (skuBM ? qtyBM * (skuBM.msrp * (1 - (skuBM.discount / 100))) : 0) + (skuV ? qtyV * (skuV.msrp * (1 - (skuV.discount / 100))) : 0);
@@ -441,11 +460,11 @@
         box2.className = 'summary-box' + (isOpt2Better ? ' recommended' : '');
 
         html1 += `<tr class="total-row"><td colspan="3" style="text-align:right">Total Net:</td><td>${fmt(total1)}</td></tr>`;
-        if(isOpt1Better && total2 > 0) html1 += `<tr><td colspan="4" class="savings-callout">Estimated Savings: ${fmt(savings)}</td></tr>`;
+        if(isOpt1Better && total2 > 0) html1 += `<tr><td colspan="4" class="savings-callout">Est. Savings vs Opt 2: ${fmt(savings)}</td></tr>`;
         html1 += `</tbody></table>`;
 
         html2 += `<tr class="total-row"><td colspan="3" style="text-align:right">Total Net:</td><td>${fmt(total2)}</td></tr>`;
-        if(isOpt2Better && total1 > 0) html2 += `<tr><td colspan="4" class="savings-callout">Estimated Savings: ${fmt(savings)}</td></tr>`;
+        if(isOpt2Better && total1 > 0) html2 += `<tr><td colspan="4" class="savings-callout">Est. Savings vs Opt 1: ${fmt(savings)}</td></tr>`;
         html2 += `</tbody></table>`;
 
         bom1Container.innerHTML = html1;
