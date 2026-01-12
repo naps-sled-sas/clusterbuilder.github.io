@@ -227,7 +227,6 @@
 
 <div class="container">
     <div id="clusters-wrapper"></div>
-
     <div class="global-summary-container">
         <div id="option-1-box" class="summary-box">
             <h2>Option 1: 100% Core Based <span class="recommendation-badge">Best Value</span></h2>
@@ -243,7 +242,7 @@
 <div id="share-banner" class="share-banner">Link copied to clipboard</div>
 
 <script>
-    const EDITIONS = ["OpenShift Virtualization Engine", "OpenShift Kubernetes Engine", "OpenShift Container Platform", "OpenShift Platform Plus"];
+    const EDITIONS = ["OpenShift Virtualization Engine", "OpenShift Kubernetes Engine", "OpenShift Container Platform", "OpenShift Platform Plus", "OpenShift AI", "AI Accelerator"];
     const SLAS = ["Standard", "Premium"];
 
     let state = {
@@ -255,13 +254,13 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v33_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v37_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v33_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v37_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
@@ -272,7 +271,11 @@
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => { parseCSV(event.target.result); render(); save(); };
+        reader.onload = (event) => { 
+            parseCSV(event.target.result); 
+            save();
+            render(); // Re-render everything including the modal SKU table
+        };
         reader.readAsText(file);
     });
 
@@ -338,11 +341,10 @@
                 if (field === 'cores') { v = Math.max(2, Math.min(128, v)); n.cores = v % 2 !== 0 ? v - 1 : v; }
                 else if (field === 'qty') { n.qty = Math.max(1, v); }
                 else { n.aiAcc = Math.max(0, v); }
-            } else if (['isInfra', 'isWorker', 'isControlPlane', 'isAI'].includes(field)) {
-                // Mutually exclusive roles
-                n.isInfra = n.isWorker = n.isControlPlane = n.isAI = false;
+            } else if (field === 'isInfra' || field === 'isWorker' || field === 'isAI') {
+                n.isInfra = n.isWorker = n.isAI = false;
                 n[field] = val;
-            } else { n[field] = val; }
+            } else { n[field] = val; } 
             save(); render();
         }
     }
@@ -366,7 +368,6 @@
             const totalVirtCores = cluster.nodes.filter(n => n.arch === 'Virtual').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const totalAiAcc = cluster.nodes.reduce((s, n) => s + (parseInt(n.aiAcc || 0) * parseInt(n.qty)), 0);
 
-            // AI nodes treated as workers for core entitlements
             const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
 
@@ -382,7 +383,7 @@
                         ${!cluster.isCollapsed ? `<div style="display:flex; gap:10px; margin-top:5px;">
                             <button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Node</button>
                             <button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone</button>
-                            <button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete</button>
+                            ${state.clusters.length > 1 ? `<button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete</button>` : ''}
                         </div>` : ''}
                     </div>
                     <div class="cluster-controls">
@@ -458,7 +459,8 @@
         const bom1Container = document.getElementById('bom-1-container');
         const bom2Container = document.getElementById('bom-2-container');
         const summaryData = {};
-        let totalPhysAll = 0, totalVirtAll = 0;
+        let globalAiAccTotal = { Standard: 0, Premium: 0 };
+        let globalAiCoresTotal = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
 
         EDITIONS.forEach(ed => { SLAS.forEach(sla => { summaryData[`${ed}|${sla}`] = { physNodes: 0, physCores: 0, virtCores: 0 }; }); });
 
@@ -466,61 +468,90 @@
             const key = `${c.edition}|${c.sla}`;
             if (!summaryData[key]) summaryData[key] = { physNodes: 0, physCores: 0, virtCores: 0 };
             c.nodes.forEach(n => {
+                const nQty = parseInt(n.qty) || 1;
+                const nCores = parseInt(n.cores) || 0;
+                const nAiAcc = parseInt(n.aiAcc) || 0;
+                globalAiAccTotal[c.sla] += (nAiAcc * nQty);
                 if (n.isWorker || n.isAI) {
-                    const nQty = parseInt(n.qty) || 1, nCores = parseInt(n.cores) || 0;
-                    if (n.arch === 'Physical') { summaryData[key].physCores += (nCores * nQty); summaryData[key].physNodes += nQty; totalPhysAll += (nCores * nQty); }
-                    else { summaryData[key].virtCores += (nCores * nQty); totalVirtAll += (nCores * nQty); }
+                    if (n.arch === 'Physical') { 
+                        summaryData[key].physCores += (nCores * nQty); summaryData[key].physNodes += nQty;
+                        globalAiCoresTotal[c.sla].physCores += (nCores * nQty); globalAiCoresTotal[c.sla].physNodes += nQty;
+                    } else { 
+                        summaryData[key].virtCores += (nCores * nQty); 
+                        globalAiCoresTotal[c.sla].virtCores += (nCores * nQty);
+                    }
                 }
             });
         });
 
-        const grandTotalCores = totalPhysAll + totalVirtAll;
-        const physPct = grandTotalCores > 0 ? (totalPhysAll / grandTotalCores * 100) : 0;
-        const virtPct = grandTotalCores > 0 ? (totalVirtAll / grandTotalCores * 100) : 0;
-
-        const chartHtml = `
-            <div class="distribution-chart">
-                <div class="dist-bar dist-phys" style="width: ${physPct}%">${physPct > 12 ? 'Phys' : ''}</div>
-                <div class="dist-bar dist-virt" style="width: ${virtPct}%">${virtPct > 12 ? 'Virt' : ''}</div>
-            </div>`;
-
-        let total1 = 0, total2 = 0;
         const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
 
-        let html1 = chartHtml + `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
-        let html2 = chartHtml + `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
+        const generateBOM = (isOpt2) => {
+            let html = `<table class="bom-table"><thead><tr><th>Edition / SLA</th><th>SKU</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
+            let totalNet = 0;
 
-        Object.keys(summaryData).forEach(key => {
-            const [ed, sla] = key.split('|'), d = summaryData[key];
-            if (d.physCores === 0 && d.virtCores === 0) return;
-            const skuV = state.skus.find(s => s.edition === ed && s.sla === sla && !s.isBM);
-            const skuBM = state.skus.find(s => s.edition === ed && s.sla === sla && s.isBM);
-            
-            const q1 = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
-            let p1 = skuV ? q1 * (skuV.msrp * (1 - (skuV.discount / 100))) : 0; total1 += p1;
-            html1 += `<tr><td><strong>${ed}</strong><br><small>${sla}</small></td><td>${skuV ? skuV.code : 'N/A'}</td><td>${q1}</td><td>${fmt(p1)}</td></tr>`;
+            Object.keys(summaryData).forEach(key => {
+                const [ed, sla] = key.split('|'), d = summaryData[key];
+                if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
+                const skuV = state.skus.find(s => s.edition === ed && s.sla === sla && !s.isBM);
+                const skuBM = state.skus.find(s => s.edition === ed && s.sla === sla && s.isBM);
+                let rowPrice = 0, rowQty = "", rowCodes = "";
+                if (isOpt2) {
+                    const qV = Math.ceil(d.virtCores / 4);
+                    if (skuBM) rowPrice += d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
+                    if (skuV) rowPrice += qV * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    rowQty = `${d.physNodes} BM / ${qV} V`; rowCodes = `${skuBM ? skuBM.code : 'No BM'}<br>${skuV ? skuV.code : 'No V'}`;
+                } else {
+                    const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
+                    if (skuV) rowPrice = qTotal * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    rowQty = qTotal; rowCodes = skuV ? skuV.code : 'Missing SKU';
+                }
+                totalNet += rowPrice;
+                html += `<tr><td><strong>${ed}</strong><br><small>${sla}</small></td><td>${rowCodes}</td><td>${rowQty}</td><td>${fmt(rowPrice)}</td></tr>`;
+            });
 
-            const qV = Math.ceil(d.virtCores / 4);
-            let p2 = (skuBM ? d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100))) : 0) + (skuV ? qV * (skuV.msrp * (1 - (skuV.discount / 100))) : 0); total2 += p2;
-            html2 += `<tr><td><strong>${ed}</strong><br><small>${sla}</small></td><td>${skuBM ? skuBM.code : 'N/A'}<br>${skuV ? skuV.code : 'N/A'}</td><td>${d.physNodes} BM / ${qV} V</td><td>${fmt(p2)}</td></tr>`;
-        });
+            SLAS.forEach(sla => {
+                if (globalAiAccTotal[sla] > 0) {
+                    const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
+                    const price = sku ? globalAiAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100))) : 0;
+                    totalNet += price;
+                    html += `<tr style="background:#f3f0ff"><td><strong>AI Accelerator</strong><br><small>${sla}</small></td><td>${sku ? sku.code : 'Missing'}</td><td>${globalAiAccTotal[sla]}</td><td>${fmt(price)}</td></tr>`;
+                }
+            });
 
-        const isOpt1Better = total1 > 0 && (total2 <= 0 || total1 < total2);
-        const isOpt2Better = total2 > 0 && (total1 <= 0 || total2 < total1);
-        const savings = Math.abs(total1 - total2);
+            SLAS.forEach(sla => {
+                const d = globalAiCoresTotal[sla];
+                if (d.physCores === 0 && d.virtCores === 0) return;
+                const skuV = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && !s.isBM);
+                const skuBM = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && s.isBM);
+                let rowPrice = 0, rowQty = "", rowCodes = "";
+                if (isOpt2) {
+                    const qV = Math.ceil(d.virtCores / 4);
+                    if (skuBM) rowPrice += d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
+                    if (skuV) rowPrice += qV * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    rowQty = `${d.physNodes} BM / ${qV} V`; rowCodes = `${skuBM ? skuBM.code : 'No BM'}<br>${skuV ? skuV.code : 'No V'}`;
+                } else {
+                    const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
+                    if (skuV) rowPrice = qTotal * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    rowQty = qTotal; rowCodes = skuV ? skuV.code : 'Missing';
+                }
+                totalNet += rowPrice;
+                html += `<tr style="background:#f3f0ff"><td><strong>OpenShift AI</strong><br><small>${sla}</small></td><td>${rowCodes}</td><td>${rowQty}</td><td>${fmt(rowPrice)}</td></tr>`;
+            });
+            return { html: html + `</tbody></table>`, total: totalNet };
+        };
+
+        const opt1 = generateBOM(false);
+        const opt2 = generateBOM(true);
+        const savings = Math.abs(opt1.total - opt2.total);
+        const isOpt1Better = opt1.total > 0 && (opt2.total <= 0 || opt1.total < opt2.total);
+        const isOpt2Better = opt2.total > 0 && (opt1.total <= 0 || opt2.total < opt1.total);
 
         document.getElementById('option-1-box').className = 'summary-box' + (isOpt1Better ? ' recommended' : '');
         document.getElementById('option-2-box').className = 'summary-box' + (isOpt2Better ? ' recommended' : '');
 
-        html1 += `<tr class="total-row"><td colspan="3" style="text-align:right">Total Net:</td><td>${fmt(total1)}</td></tr>`;
-        if(isOpt1Better && total2 > 0) html1 += `<tr><td colspan="4" class="savings-callout">Est. Savings: ${fmt(savings)}</td></tr>`;
-        html1 += `</tbody></table>`;
-
-        html2 += `<tr class="total-row"><td colspan="3" style="text-align:right">Total Net:</td><td>${fmt(total2)}</td></tr>`;
-        if(isOpt2Better && total1 > 0) html2 += `<tr><td colspan="4" class="savings-callout">Est. Savings: ${fmt(savings)}</td></tr>`;
-        html2 += `</tbody></table>`;
-
-        bom1Container.innerHTML = html1; bom2Container.innerHTML = html2;
+        bom1Container.innerHTML = opt1.html + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt1.total)}</span></div>` + (isOpt1Better && opt2.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
+        bom2Container.innerHTML = opt2.html + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt2.total)}</span></div>` + (isOpt2Better && opt1.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
     }
 
     document.getElementById('add-cluster-btn').onclick = addCluster;
