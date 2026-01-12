@@ -60,6 +60,7 @@
 
         .btn-primary { background: var(--primary); color: white; }
         .btn-outline { background: transparent; border: 1px solid var(--border); }
+        .btn-success { background: #28a745; color: white; }
 
         .cluster-header {
             display: flex;
@@ -210,7 +211,14 @@
 
 <div class="container">
     <div id="settings-view" class="card">
-        <h3>Product Configuration</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin:0">Product Configuration</h3>
+            <div style="display: flex; gap: 10px;">
+                <input type="file" id="csv-upload" accept=".csv" style="display: none;">
+                <button class="btn btn-success" onclick="document.getElementById('csv-upload').click()">Upload CSV</button>
+            </div>
+        </div>
+        
         <table style="width:100%; border-collapse: collapse;" id="sku-table">
             <thead>
                 <tr style="text-align: left; font-size: 0.8rem;">
@@ -219,7 +227,7 @@
             </thead>
             <tbody id="sku-body"></tbody>
         </table>
-        <button class="btn btn-outline" style="margin-top:10px; width:100%;" onclick="addSkuRow()">+ Add SKU</button>
+        <button class="btn btn-outline" style="margin-top:10px; width:100%;" onclick="addSkuRow()">+ Add Manual SKU</button>
     </div>
     <div id="clusters-wrapper"></div>
 </div>
@@ -230,7 +238,7 @@
     const EDITIONS = ["OpenShift Virtualization Engine", "OpenShift Kubernetes Engine", "OpenShift Container Platform", "OpenShift Platform Plus"];
 
     let state = {
-        skus: [{id: "init-sku", code: 'MW00001', edition: 'OpenShift Container Platform', msrp: 1000, discount: 0, isBM: false}],
+        skus: [],
         clusters: [{
             id: "c_init",
             name: "Primary Cluster",
@@ -242,14 +250,60 @@
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
 
-    function save() { localStorage.setItem('os_v13_state', JSON.stringify(state)); }
+    function save() { localStorage.setItem('os_v15_state', JSON.stringify(state)); }
+
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
-        if (shared) try { state = JSON.parse(atob(shared)); } catch(e){}
-        else { const saved = localStorage.getItem('os_v13_state'); if (saved) state = JSON.parse(saved); }
+        if (shared) {
+            try { state = JSON.parse(atob(shared)); } catch(e) {}
+        } else {
+            const saved = localStorage.getItem('os_v15_state');
+            if (saved) state = JSON.parse(saved);
+        }
+        render();
     }
 
+    // --- CSV Processing ---
+    document.getElementById('csv-upload').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            parseCSV(event.target.result);
+            render();
+            save();
+        };
+        reader.readAsText(file);
+    });
+
+    function parseCSV(csvText) {
+        const lines = csvText.split('\n');
+        if (lines.length < 2) return;
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const newSkus = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const values = lines[i].split(',').map(v => v.trim());
+            const skuObj = { id: getNewId('s') };
+            
+            headers.forEach((header, index) => {
+                const val = values[index];
+                if (header === 'sku') skuObj.code = val;
+                if (header === 'edition') skuObj.edition = val;
+                if (header === 'msrp') skuObj.msrp = parseFloat(val) || 0;
+                if (header === 'discount') skuObj.discount = parseFloat(val) || 0;
+                if (header === 'bm') skuObj.isBM = (val && val.toLowerCase() === 'true');
+            });
+            newSkus.push(skuObj);
+        }
+        state.skus = newSkus;
+    }
+
+    // --- Actions ---
     function addCluster() {
         state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: "OpenShift Container Platform", defaultArch: "Physical", nodes: [] });
         save(); render();
@@ -315,9 +369,9 @@
         wrapper.innerHTML = '';
 
         state.clusters.forEach(cluster => {
+            const workers = cluster.nodes.filter(n => n.isWorker).length;
             const cps = cluster.nodes.filter(n => n.isControlPlane).length;
             const infras = cluster.nodes.filter(n => n.isInfra).length;
-            const workers = cluster.nodes.filter(n => n.isWorker).length;
 
             const totalPhysCores = cluster.nodes.filter(n => n.arch === 'Physical').reduce((s, n) => s + parseInt(n.cores), 0);
             const entPhysCores = cluster.nodes.filter(n => n.arch === 'Physical' && n.isWorker).reduce((s, n) => s + parseInt(n.cores), 0);
@@ -399,18 +453,22 @@
             wrapper.appendChild(div);
         });
 
-        document.getElementById('sku-body').innerHTML = state.skus.map(s => `
-            <tr>
-                <td><input class="table-input" type="text" value="${s.code}" oninput="updateSku('${s.id}', 'code', this.value)"></td>
+        const skuBody = document.getElementById('sku-body');
+        skuBody.innerHTML = '';
+        state.skus.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td>
                 <td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
-                <td><input class="table-input" type="number" value="${s.msrp}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td>
-                <td><input class="table-input" type="number" value="${s.discount}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td>
+                <td><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td>
+                <td><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td>
                 <td style="text-align:center;"><input type="checkbox" ${s.isBM ? 'checked' : ''} onchange="updateSku('${s.id}', 'isBM', this.checked)"></td>
-                <td><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none;">&times;</button></td>
-            </tr>`).join('');
+                <td><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none; cursor:pointer;">&times;</button></td>
+            `;
+            skuBody.appendChild(tr);
+        });
     }
 
-    document.getElementById('add-cluster-btn').onclick = addCluster;
     document.getElementById('toggle-settings').onclick = () => document.getElementById('settings-view').classList.toggle('active');
     document.getElementById('share-btn').onclick = () => {
         const b64 = btoa(JSON.stringify(state));
@@ -419,7 +477,7 @@
         const b = document.getElementById('share-banner'); b.style.display = 'block'; setTimeout(() => b.style.display = 'none', 2000);
     };
 
-    window.onload = () => { load(); render(); };
+    window.onload = load;
 </script>
 </body>
 </html>
