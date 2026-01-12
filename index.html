@@ -19,7 +19,7 @@
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
-            padding-bottom: 40px;
+            padding-bottom: 80px;
         }
 
         header {
@@ -84,11 +84,7 @@
             border: 1px solid var(--border);
         }
 
-        .cluster-summary-table td, .cluster-summary-table th {
-            padding: 4px 8px;
-            border-bottom: 1px solid #eee;
-        }
-
+        .cluster-summary-table td, .cluster-summary-table th { padding: 4px 8px; border-bottom: 1px solid #eee; }
         .cluster-summary-table th { text-align: left; color: #666; font-weight: bold; }
         .highlight-row { background: #fdf2f2; font-weight: bold; }
 
@@ -115,85 +111,50 @@
             position: absolute;
             left: 20px;
             top: 0;
-            background: #333;
-            color: #fff;
-            padding: 8px;
-            border-radius: 4px;
-            width: 180px;
-            font-size: 11px;
-            z-index: 10;
-            font-weight: normal;
-            text-align: left;
+            background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
 
         .cluster-name-input {
-            font-size: 1.5rem;
-            font-weight: bold;
-            border: none;
-            border-bottom: 2px solid transparent;
-            background: transparent;
-            padding: 4px 0;
-            width: 100%;
-            margin-bottom: 10px;
-            color: var(--text);
+            font-size: 1.5rem; font-weight: bold; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 4px 0; width: 100%; margin-bottom: 10px; color: var(--text);
         }
 
         .cluster-name-input:focus { outline: none; border-bottom-color: var(--primary); }
 
-        .config-select {
-            width: 100%;
-            padding: 6px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            font-size: 0.85rem;
-        }
-
         .node-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border: 2px dashed var(--border);
-            border-radius: 8px;
+            gap: 1.5rem; margin-top: 1.5rem; padding: 1rem; border: 2px dashed var(--border); border-radius: 8px;
         }
 
-        .node-card {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 15px;
-            position: relative;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-        }
-
+        .node-card { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 15px; position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .node-actions { position: absolute; top: 8px; right: 8px; }
         .node-actions button { background: none; border: none; color: #cc0000; cursor: pointer; font-size: 1.2rem; }
 
         .node-input-group { font-size: 0.85rem; margin-top: 10px; }
         label.group-label { font-weight: bold; display: block; margin-bottom: 2px; color: #444; }
         
-        input[type="number"], .table-input, select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            margin-top: 4px;
-            box-sizing: border-box;
+        input[type="number"], .table-input, select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-top: 4px; box-sizing: border-box; }
+
+        /* Global Summary Styles */
+        .global-summary-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 3rem;
+            border-top: 2px solid #000;
+            padding-top: 2rem;
         }
 
-        .share-banner {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #333;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            display: none;
-            z-index: 1000;
-        }
+        .summary-box { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .summary-box h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        .bom-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
+        .bom-table th { text-align: left; background: #f0f0f0; padding: 10px; border: 1px solid var(--border); }
+        .bom-table td { padding: 10px; border: 1px solid var(--border); }
+        .total-row { font-weight: bold; background: #fff5f5; }
+
+        .share-banner { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; display: none; z-index: 1000; }
+        
+        @media (max-width: 800px) { .global-summary-container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -218,7 +179,6 @@
                 <button class="btn btn-success" onclick="document.getElementById('csv-upload').click()">Upload CSV</button>
             </div>
         </div>
-        
         <table style="width:100%; border-collapse: collapse;" id="sku-table">
             <thead>
                 <tr style="text-align: left; font-size: 0.8rem;">
@@ -229,7 +189,19 @@
         </table>
         <button class="btn btn-outline" style="margin-top:10px; width:100%;" onclick="addSkuRow()">+ Add Manual SKU</button>
     </div>
+
     <div id="clusters-wrapper"></div>
+
+    <div class="global-summary-container">
+        <div id="option-1-summary" class="summary-box">
+            <h2>100% Core Based</h2>
+            <div id="bom-1-container"></div>
+        </div>
+        <div id="option-2-summary" class="summary-box" style="opacity: 0.5; border: 2px dashed var(--border);">
+            <h2>Option 2 Pricing</h2>
+            <p style="text-align: center; padding: 2rem; color: #666;">Future Comparison Placeholder</p>
+        </div>
+    </div>
 </div>
 
 <div id="share-banner" class="share-banner">Link copied to clipboard</div>
@@ -239,57 +211,37 @@
 
     let state = {
         skus: [],
-        clusters: [{
-            id: "c_init",
-            name: "Primary Cluster",
-            edition: "OpenShift Container Platform",
-            defaultArch: "Physical",
-            nodes: []
-        }]
+        clusters: [{ id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", defaultArch: "Physical", nodes: [] }]
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-
-    function save() { localStorage.setItem('os_v15_state', JSON.stringify(state)); }
+    const save = () => localStorage.setItem('os_v16_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
-        if (shared) {
-            try { state = JSON.parse(atob(shared)); } catch(e) {}
-        } else {
-            const saved = localStorage.getItem('os_v15_state');
-            if (saved) state = JSON.parse(saved);
-        }
+        if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
+        else { const saved = localStorage.getItem('os_v16_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
-    // --- CSV Processing ---
+    // CSV Processing
     document.getElementById('csv-upload').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
-        reader.onload = function(event) {
-            parseCSV(event.target.result);
-            render();
-            save();
-        };
+        reader.onload = (event) => { parseCSV(event.target.result); render(); save(); };
         reader.readAsText(file);
     });
 
     function parseCSV(csvText) {
         const lines = csvText.split('\n');
-        if (lines.length < 2) return;
-
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
         const newSkus = [];
-
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
             const values = lines[i].split(',').map(v => v.trim());
             const skuObj = { id: getNewId('s') };
-            
             headers.forEach((header, index) => {
                 const val = values[index];
                 if (header === 'sku') skuObj.code = val;
@@ -303,65 +255,28 @@
         state.skus = newSkus;
     }
 
-    // --- Actions ---
-    function addCluster() {
-        state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: "OpenShift Container Platform", defaultArch: "Physical", nodes: [] });
-        save(); render();
-    }
-
-    function cloneCluster(id) {
-        const target = state.clusters.find(c => c.id === id);
-        if (target) {
-            const newCluster = JSON.parse(JSON.stringify(target));
-            newCluster.id = getNewId('c');
-            newCluster.name += " (Copy)";
-            newCluster.nodes = newCluster.nodes.map(n => ({ ...n, id: getNewId('n') }));
-            state.clusters.push(newCluster);
-            save(); render();
-        }
-    }
-
-    function deleteCluster(id) {
-        if (state.clusters.length > 1) { state.clusters = state.clusters.filter(c => c.id !== id); save(); render(); }
-    }
-
-    function updateCluster(id, field, val) {
-        const c = state.clusters.find(c => c.id === id);
-        if (c) { c[field] = val; save(); render(); }
-    }
-
+    // Core Actions
+    function addCluster() { state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: "OpenShift Container Platform", defaultArch: "Physical", nodes: [] }); save(); render(); }
+    function deleteCluster(id) { if (state.clusters.length > 1) { state.clusters = state.clusters.filter(c => c.id !== id); save(); render(); } }
+    function updateCluster(id, field, val) { const c = state.clusters.find(c => c.id === id); if (c) { c[field] = val; save(); render(); } }
     function addNode(clusterId) {
         const c = state.clusters.find(c => c.id === clusterId);
-        if (c) {
-            c.nodes.push({ id: getNewId('n'), isWorker: true, isControlPlane: false, isInfra: false, arch: c.defaultArch, cores: 16 });
-            save(); render();
-        }
+        if (c) { c.nodes.push({ id: getNewId('n'), isWorker: true, isControlPlane: false, isInfra: false, arch: c.defaultArch, cores: 16 }); save(); render(); }
     }
-
     function updateNode(clusterId, nodeId, field, val) {
         const c = state.clusters.find(c => c.id === clusterId);
         const n = c?.nodes.find(n => n.id === nodeId);
         if (n) {
-            if (field === 'cores') {
-                let v = parseInt(val) || 2;
-                v = Math.max(2, Math.min(128, v));
-                n.cores = v % 2 !== 0 ? v - 1 : v;
-            } else if (field === 'isInfra' && val === true) {
-                n.isInfra = true; n.isWorker = false;
-            } else if (field === 'isWorker' && val === true) {
-                n.isWorker = true; n.isInfra = false;
-            } else { n[field] = val; }
+            if (field === 'cores') { let v = parseInt(val) || 2; v = Math.max(2, Math.min(128, v)); n.cores = v % 2 !== 0 ? v - 1 : v; }
+            else if (field === 'isInfra' && val === true) { n.isInfra = true; n.isWorker = false; }
+            else if (field === 'isWorker' && val === true) { n.isWorker = true; n.isInfra = false; }
+            else { n[field] = val; }
             save(); render();
         }
     }
-
-    function deleteNode(clusterId, nodeId) {
-        const c = state.clusters.find(c => c.id === clusterId);
-        if (c) { c.nodes = c.nodes.filter(n => n.id !== nodeId); save(); render(); }
-    }
-
+    function deleteNode(clusterId, nodeId) { const c = state.clusters.find(c => c.id === clusterId); if (c) { c.nodes = c.nodes.filter(n => n.id !== nodeId); save(); render(); } }
     function addSkuRow() { state.skus.push({id: getNewId('s'), code: '', edition: EDITIONS[2], msrp: 0, discount: 0, isBM: false}); save(); render(); }
-    function updateSku(id, field, val) { const s = state.skus.find(s => s.id === id); if (s) s[field] = val; save(); }
+    function updateSku(id, field, val) { const s = state.skus.find(s => s.id === id); if (s) s[field] = val; save(); render(); }
     function deleteSku(id) { state.skus = state.skus.filter(s => s.id !== id); save(); render(); }
 
     function render() {
@@ -369,106 +284,104 @@
         wrapper.innerHTML = '';
 
         state.clusters.forEach(cluster => {
-            const workers = cluster.nodes.filter(n => n.isWorker).length;
             const cps = cluster.nodes.filter(n => n.isControlPlane).length;
             const infras = cluster.nodes.filter(n => n.isInfra).length;
-
-            const totalPhysCores = cluster.nodes.filter(n => n.arch === 'Physical').reduce((s, n) => s + parseInt(n.cores), 0);
-            const entPhysCores = cluster.nodes.filter(n => n.arch === 'Physical' && n.isWorker).reduce((s, n) => s + parseInt(n.cores), 0);
-            const totalVirtCores = cluster.nodes.filter(n => n.arch === 'Virtual').reduce((s, n) => s + parseInt(n.cores), 0);
-            const entVirtCores = cluster.nodes.filter(n => n.arch === 'Virtual' && n.isWorker).reduce((s, n) => s + parseInt(n.cores), 0);
+            const workers = cluster.nodes.filter(n => n.isWorker).length;
+            const totalPhys = cluster.nodes.filter(n => n.arch === 'Physical').reduce((s, n) => s + parseInt(n.cores), 0);
+            const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && n.isWorker).reduce((s, n) => s + parseInt(n.cores), 0);
+            const totalVirt = cluster.nodes.filter(n => n.arch === 'Virtual').reduce((s, n) => s + parseInt(n.cores), 0);
+            const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && n.isWorker).reduce((s, n) => s + parseInt(n.cores), 0);
 
             const cpIsInvalid = (cps !== 3 && cps !== 5);
-
             const div = document.createElement('div');
             div.className = 'card cluster-card';
             div.innerHTML = `
                 <div class="cluster-header">
                     <div class="cluster-main-meta">
                         <input type="text" class="cluster-name-input" value="${cluster.name}" onchange="updateCluster('${cluster.id}', 'name', this.value)">
-                        <div style="display:flex; gap:10px;">
-                            <button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Add Node</button>
-                            <button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone Cluster</button>
-                            ${state.clusters.length > 1 ? `<button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete Cluster</button>` : ''}
-                        </div>
+                        <div style="display:flex; gap:10px;"><button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Add Node</button><button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete Cluster</button></div>
                     </div>
                     <div class="cluster-controls">
                         <label class="group-label">Edition</label>
-                        <select class="config-select" onchange="updateCluster('${cluster.id}', 'edition', this.value)">
-                            ${EDITIONS.map(e => `<option ${cluster.edition === e ? 'selected' : ''}>${e}</option>`).join('')}
-                        </select>
+                        <select class="config-select" onchange="updateCluster('${cluster.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${cluster.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
                         <label class="group-label">Default Node Arch</label>
-                        <select class="config-select" onchange="updateCluster('${cluster.id}', 'defaultArch', this.value)">
-                            <option value="Physical" ${cluster.defaultArch === 'Physical' ? 'selected' : ''}>Physical</option>
-                            <option value="Virtual" ${cluster.defaultArch === 'Virtual' ? 'selected' : ''}>Virtual</option>
-                        </select>
+                        <select class="config-select" onchange="updateCluster('${cluster.id}', 'defaultArch', this.value)"><option value="Physical" ${cluster.defaultArch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${cluster.defaultArch === 'Virtual' ? 'selected' : ''}>Virtual</option></select>
                     </div>
                     <table class="cluster-summary-table">
-                        <tr><th>Infra Nodes / Workers</th><td>${infras} / ${workers}</td></tr>
-                        <tr class="${cpIsInvalid ? 'alert-text' : ''}">
-                            <th>Control Planes <span class="tooltip">i</span></th><td>${cps}</td>
-                        </tr>
-                        <tr><th>Total physical cores</th><td>${totalPhysCores}</td></tr>
-                        <tr class="highlight-row"><th>Entitled physical cores</th><td>${entPhysCores}</td></tr>
-                        <tr><th>Total virtual cores</th><td>${totalVirtCores}</td></tr>
-                        <tr class="highlight-row"><th>Entitled virtual cores</th><td>${entVirtCores}</td></tr>
+                        <tr><th>Infra / Workers</th><td>${infras} / ${workers}</td></tr>
+                        <tr class="${cpIsInvalid ? 'alert-text' : ''}"><th>Control Planes <span class="tooltip">i</span></th><td>${cps}</td></tr>
+                        <tr><th>Total physical cores</th><td>${totalPhys}</td></tr>
+                        <tr class="highlight-row"><th>Entitled physical cores</th><td>${entPhys}</td></tr>
+                        <tr><th>Total virtual cores</th><td>${totalVirt}</td></tr>
+                        <tr class="highlight-row"><th>Entitled virtual cores</th><td>${entVirt}</td></tr>
                     </table>
                 </div>
                 <div class="node-grid"></div>
             `;
-            
             const grid = div.querySelector('.node-grid');
             if (cluster.nodes.length === 0) grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999; padding: 20px;">No nodes defined.</div>';
-            
             cluster.nodes.forEach(node => {
                 const nodeEl = document.createElement('div');
                 nodeEl.className = 'node-card';
                 nodeEl.innerHTML = `
                     <div class="node-actions"><button onclick="deleteNode('${cluster.id}', '${node.id}')">&times;</button></div>
-                    <div style="text-align:center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 10px;">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="1"></rect><rect x="2" y="14" width="20" height="8" rx="1"></rect><circle cx="6" cy="6" r="0.5" fill="currentColor"></circle><circle cx="6" cy="18" r="0.5" fill="currentColor"></circle></svg>
-                    </div>
-                    <div class="node-input-group">
-                        <label class="group-label">Roles</label>
-                        <div style="display:flex; flex-direction: column; gap:5px; font-size:0.8rem;">
-                            <label><input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"> Worker</label>
-                            <label><input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"> Infra</label>
-                            <label><input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"> Control Plane</label>
-                        </div>
-                    </div>
-                    <div class="node-input-group">
-                        <label class="group-label">Architecture</label>
-                        <select onchange="updateNode('${cluster.id}', '${node.id}', 'arch', this.value)">
-                            <option value="Physical" ${node.arch === 'Physical' ? 'selected' : ''}>Physical</option>
-                            <option value="Virtual" ${node.arch === 'Virtual' ? 'selected' : ''}>Virtual</option>
-                        </select>
-                    </div>
-                    <div class="node-input-group">
-                        <label class="group-label">Core Count</label>
-                        <input type="number" value="${node.cores}" step="2" onchange="updateNode('${cluster.id}', '${node.id}', 'cores', this.value)">
-                    </div>
+                    <div style="text-align:center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 10px;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="1"></rect><rect x="2" y="14" width="20" height="8" rx="1"></rect><circle cx="6" cy="6" r="0.5" fill="currentColor"></circle><circle cx="6" cy="18" r="0.5" fill="currentColor"></circle></svg></div>
+                    <div class="node-input-group"><label class="group-label">Roles</label><div style="display:flex; flex-direction: column; gap:5px; font-size:0.8rem;">
+                        <label><input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"> Worker</label>
+                        <label><input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"> Infra</label>
+                        <label><input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"> Control Plane</label>
+                    </div></div>
+                    <div class="node-input-group"><label class="group-label">Architecture</label><select onchange="updateNode('${cluster.id}', '${node.id}', 'arch', this.value)"><option value="Physical" ${node.arch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${node.arch === 'Virtual' ? 'selected' : ''}>Virtual</option></select></div>
+                    <div class="node-input-group"><label class="group-label">Core Count</label><input type="number" value="${node.cores}" step="2" onchange="updateNode('${cluster.id}', '${node.id}', 'cores', this.value)"></div>
                 `;
                 grid.appendChild(nodeEl);
             });
             wrapper.appendChild(div);
         });
 
-        const skuBody = document.getElementById('sku-body');
-        skuBody.innerHTML = '';
-        state.skus.forEach(s => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td>
-                <td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
-                <td><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td>
-                <td><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td>
-                <td style="text-align:center;"><input type="checkbox" ${s.isBM ? 'checked' : ''} onchange="updateSku('${s.id}', 'isBM', this.checked)"></td>
-                <td><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none; cursor:pointer;">&times;</button></td>
-            `;
-            skuBody.appendChild(tr);
-        });
+        document.getElementById('sku-body').innerHTML = state.skus.map(s => `<tr><td><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td><td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td><td><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td><td><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td><td style="text-align:center;"><input type="checkbox" ${s.isBM ? 'checked' : ''} onchange="updateSku('${s.id}', 'isBM', this.checked)"></td><td><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none;">&times;</button></td></tr>`).join('');
+        
+        renderGlobalSummaries();
     }
 
+    function renderGlobalSummaries() {
+        const bom1Container = document.getElementById('bom-1-container');
+        const summaryData = {};
+        EDITIONS.forEach(ed => { summaryData[ed] = { phys: 0, virt: 0 }; });
+
+        state.clusters.forEach(c => {
+            c.nodes.forEach(n => {
+                if (n.isWorker) {
+                    if (n.arch === 'Physical') summaryData[c.edition].phys += parseInt(n.cores || 0);
+                    if (n.arch === 'Virtual') summaryData[c.edition].virt += parseInt(n.cores || 0);
+                }
+            });
+        });
+
+        let html = `<table class="bom-table"><thead><tr><th>Edition</th><th>SKU</th><th>Qty</th><th>Net Price</th></tr></thead><tbody>`;
+        let grandTotal = 0;
+
+        Object.keys(summaryData).forEach(edition => {
+            const data = summaryData[edition];
+            if (data.phys === 0 && data.virt === 0) return;
+            const sku = state.skus.find(s => s.edition === edition && s.isBM === false);
+            const physQty = Math.ceil(data.phys / 2);
+            const virtQty = Math.ceil(data.virt / 4);
+            const totalQty = physQty + virtQty;
+            let priceDisplay = "$0.00";
+            if (sku) {
+                const rowTotal = totalQty * (sku.msrp * (1 - (sku.discount / 100)));
+                grandTotal += rowTotal;
+                priceDisplay = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(rowTotal);
+            }
+            html += `<tr><td><strong>${edition}</strong><br><small>${data.phys}P / ${data.virt}V Cores</small></td><td>${sku ? sku.code : 'Missing SKU'}</td><td>${totalQty}</td><td>${priceDisplay}</td></tr>`;
+        });
+
+        html += `<tr class="total-row"><td colspan="3" style="text-align:right">Total Net:</td><td>${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(grandTotal)}</td></tr></tbody></table>`;
+        bom1Container.innerHTML = html;
+    }
+
+    document.getElementById('add-cluster-btn').onclick = addCluster;
     document.getElementById('toggle-settings').onclick = () => document.getElementById('settings-view').classList.toggle('active');
     document.getElementById('share-btn').onclick = () => {
         const b64 = btoa(JSON.stringify(state));
