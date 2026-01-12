@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenShift Sales Accelerator</title>
+    <title>OpenShift cluster builder</title>
     <style>
         :root {
             --primary: #ee0000;
@@ -15,6 +15,7 @@
             --success: #28a745;
             --cp-dark: #3c3f42;
             --ai-purple: #6f42c1;
+            --virt-blue: #0066cc;
         }
 
         body {
@@ -127,7 +128,7 @@
             position: absolute; left: 20px; top: 0; background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
         
-        .tip-worker:hover::after { content: "A minimum of 2 worker/AI nodes is required for application high availability."; }
+        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for application high availability."; }
         .tip-cp:hover::after { content: "Quorum requires 3 or 5 Control Plane nodes for cluster stability."; }
         .tip-sub:hover::after { content: "Only worker node cores require subscriptions."; }
         .tip-ai:hover::after { content: "Count of AI accelerators, such as GPUs, attached to this node."; }
@@ -165,6 +166,7 @@
         input, select, textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-top: 4px; box-sizing: border-box; font-family: inherit; }
         textarea { resize: vertical; min-height: 40px; font-size: 0.8rem; }
 
+        /* Distribution Chart Restored */
         .global-summary-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; border-top: 2px solid #000; padding-top: 2rem; }
         .summary-box { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 2px solid transparent; position: relative; }
         .summary-box h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; font-size: 1.1rem; display: flex; align-items: center; justify-content: space-between; }
@@ -176,8 +178,12 @@
 
         .distribution-chart { margin-top: 1rem; background: #f0f0f0; border-radius: 6px; overflow: hidden; display: flex; height: 28px; border: 1px solid var(--border); }
         .dist-bar { display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white; transition: width 0.4s ease; }
-        .dist-phys { background: #ee0000; }
-        .dist-virt { background: #0066cc; }
+        .dist-phys { background: var(--primary); }
+        .dist-virt { background: var(--virt-blue); }
+        
+        .chart-legend { display: flex; gap: 15px; margin: 10px 0; font-size: 0.75rem; justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .legend-box { width: 12px; height: 12px; border-radius: 2px; }
 
         .bom-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
         .bom-table th { text-align: left; background: #f0f0f0; padding: 10px; border: 1px solid var(--border); }
@@ -192,7 +198,7 @@
 <body>
 
 <header>
-    <div style="font-weight: bold;">OpenShift Cluster Builder</div>
+    <div style="font-weight: bold;">OpenShift cluster builder</div>
     <div style="display: flex; gap: 10px; align-items: center;">
         <button class="btn btn-primary" id="add-cluster-btn" style="background: #333;">+ Add Cluster</button>
         <button id="share-btn" class="btn" style="background: #333; color: white;">Share Link</button>
@@ -254,13 +260,13 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v39_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v40_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v39_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v40_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
@@ -457,6 +463,7 @@
         const bom1Container = document.getElementById('bom-1-container');
         const bom2Container = document.getElementById('bom-2-container');
         const summaryData = {};
+        let totalPhysAll = 0, totalVirtAll = 0;
         let globalAiAccTotal = { Standard: 0, Premium: 0 };
         let globalAiSubscriptionUnits = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
 
@@ -465,40 +472,49 @@
         state.clusters.forEach(c => {
             const key = `${c.edition}|${c.sla}`;
             if (!summaryData[key]) summaryData[key] = { physNodes: 0, physCores: 0, virtCores: 0 };
-            
             c.nodes.forEach(n => {
-                const nQty = parseInt(n.qty) || 1;
-                const nCores = parseInt(n.cores) || 0;
-                const nAiAcc = parseInt(n.aiAcc) || 0;
+                const nQty = parseInt(n.qty) || 1, nCores = parseInt(n.cores) || 0, nAiAcc = parseInt(n.aiAcc) || 0;
+                
+                // Track Global Core Ratios for Chart
+                if (n.arch === 'Physical') totalPhysAll += (nCores * nQty);
+                else totalVirtAll += (nCores * nQty);
 
+                // Track AI Metrics
                 globalAiAccTotal[c.sla] += (nAiAcc * nQty);
-
                 if (n.isAI) {
-                    if (n.arch === 'Physical') { 
-                        globalAiSubscriptionUnits[c.sla].physCores += (nCores * nQty); 
-                        globalAiSubscriptionUnits[c.sla].physNodes += nQty; 
-                    } else { 
-                        globalAiSubscriptionUnits[c.sla].virtCores += (nCores * nQty); 
-                    }
+                    if (n.arch === 'Physical') { globalAiSubscriptionUnits[c.sla].physCores += (nCores * nQty); globalAiSubscriptionUnits[c.sla].physNodes += nQty; }
+                    else { globalAiSubscriptionUnits[c.sla].virtCores += (nCores * nQty); }
                 }
 
+                // Track Base Worker/AI Cents
                 if (n.isWorker || n.isAI) {
-                    if (n.arch === 'Physical') { 
-                        summaryData[key].physCores += (nCores * nQty); 
-                        summaryData[key].physNodes += nQty;
-                    } else { 
-                        summaryData[key].virtCores += (nCores * nQty); 
-                    }
+                    if (n.arch === 'Physical') { summaryData[key].physCores += (nCores * nQty); summaryData[key].physNodes += nQty; }
+                    else { summaryData[key].virtCores += (nCores * nQty); }
                 }
             });
         });
 
+        const grandTotalCores = totalPhysAll + totalVirtAll;
+        const physPct = grandTotalCores > 0 ? (totalPhysAll / grandTotalCores * 100) : 0;
+        const virtPct = grandTotalCores > 0 ? (totalVirtAll / grandTotalCores * 100) : 0;
+
+        const chartHtml = `
+            <div class="distribution-chart">
+                <div class="dist-bar dist-phys" style="width: ${physPct}%">${physPct > 12 ? 'Phys' : ''}</div>
+                <div class="dist-bar dist-virt" style="width: ${virtPct}%">${virtPct > 12 ? 'Virt' : ''}</div>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item"><div class="legend-box dist-phys"></div> Physical Cores (${totalPhysAll})</div>
+                <div class="legend-item"><div class="legend-box dist-virt"></div> Virtual Cores (${totalVirtAll})</div>
+            </div>`;
+
         const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
 
         const generateBOM = (isOpt2) => {
-            let html = `<table class="bom-table"><thead><tr><th>Edition / SLA</th><th>SKU</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
+            let html = chartHtml + `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
             let totalNet = 0;
 
+            // 1. Cluster Base SKUs
             Object.keys(summaryData).forEach(key => {
                 const [ed, sla] = key.split('|'), d = summaryData[key];
                 if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
@@ -519,6 +535,7 @@
                 html += `<tr><td><strong>${ed}</strong><br><small>${sla}</small></td><td>${rowCodes}</td><td>${rowQty}</td><td>${fmt(rowPrice)}</td></tr>`;
             });
 
+            // 2. AI Accelerator Global SKU
             SLAS.forEach(sla => {
                 if (globalAiAccTotal[sla] > 0) {
                     const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
@@ -528,6 +545,7 @@
                 }
             });
 
+            // 3. OpenShift AI Core-logic SKU
             SLAS.forEach(sla => {
                 const d = globalAiSubscriptionUnits[sla];
                 if (d.physCores === 0 && d.virtCores === 0) return;
@@ -550,8 +568,7 @@
             return { html: html + `</tbody></table>`, total: totalNet };
         };
 
-        const opt1 = generateBOM(false);
-        const opt2 = generateBOM(true);
+        const opt1 = generateBOM(false), opt2 = generateBOM(true);
         const savings = Math.abs(opt1.total - opt2.total);
         const isOpt1Better = opt1.total > 0 && (opt2.total <= 0 || opt1.total < opt2.total);
         const isOpt2Better = opt2.total > 0 && (opt1.total <= 0 || opt2.total < opt1.total);
