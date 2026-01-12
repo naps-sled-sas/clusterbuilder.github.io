@@ -105,7 +105,7 @@
 
         .cluster-summary-table {
             flex: 1.5;
-            min-width: 340px;
+            min-width: 360px;
             border-collapse: collapse;
             font-size: 0.75rem;
             background: #fafafa;
@@ -127,7 +127,7 @@
             position: absolute; left: 20px; top: 0; background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
         
-        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for application high availability."; }
+        .tip-worker:hover::after { content: "A minimum of 2 worker/AI nodes is required for application high availability."; }
         .tip-cp:hover::after { content: "Quorum requires 3 or 5 Control Plane nodes for cluster stability."; }
         .tip-sub:hover::after { content: "Only worker node cores require subscriptions."; }
         .tip-ai:hover::after { content: "Count of AI accelerators, such as GPUs, attached to this node."; }
@@ -254,13 +254,13 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v37_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v39_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v37_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v39_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
@@ -271,11 +271,7 @@
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => { 
-            parseCSV(event.target.result); 
-            save();
-            render(); // Re-render everything including the modal SKU table
-        };
+        reader.onload = (event) => { parseCSV(event.target.result); save(); render(); };
         reader.readAsText(file);
     });
 
@@ -367,6 +363,7 @@
             const totalPhysCores = cluster.nodes.filter(n => n.arch === 'Physical').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const totalVirtCores = cluster.nodes.filter(n => n.arch === 'Virtual').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const totalAiAcc = cluster.nodes.reduce((s, n) => s + (parseInt(n.aiAcc || 0) * parseInt(n.qty)), 0);
+            const totalAiCores = cluster.nodes.filter(n => n.isAI).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
 
             const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
@@ -400,6 +397,7 @@
                         <tr><th>Total physical cores</th><td>${totalPhysCores}</td></tr>
                         <tr><th>Total virtual cores</th><td>${totalVirtCores}</td></tr>
                         <tr><th>Total AI Accelerators</th><td>${totalAiAcc}</td></tr>
+                        <tr><th>OpenShift AI cores</th><td>${totalAiCores}</td></tr>
                         <tr class="highlight-row"><th>Ent. Physical Cores <span class="tooltip tip-sub">i</span></th><td>${entPhys}</td></tr>
                         <tr class="highlight-row"><th>Ent. Virtual Cores <span class="tooltip tip-sub">i</span></th><td>${entVirt}</td></tr>
                     </table>
@@ -460,25 +458,36 @@
         const bom2Container = document.getElementById('bom-2-container');
         const summaryData = {};
         let globalAiAccTotal = { Standard: 0, Premium: 0 };
-        let globalAiCoresTotal = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
+        let globalAiSubscriptionUnits = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
 
         EDITIONS.forEach(ed => { SLAS.forEach(sla => { summaryData[`${ed}|${sla}`] = { physNodes: 0, physCores: 0, virtCores: 0 }; }); });
 
         state.clusters.forEach(c => {
             const key = `${c.edition}|${c.sla}`;
             if (!summaryData[key]) summaryData[key] = { physNodes: 0, physCores: 0, virtCores: 0 };
+            
             c.nodes.forEach(n => {
                 const nQty = parseInt(n.qty) || 1;
                 const nCores = parseInt(n.cores) || 0;
                 const nAiAcc = parseInt(n.aiAcc) || 0;
+
                 globalAiAccTotal[c.sla] += (nAiAcc * nQty);
+
+                if (n.isAI) {
+                    if (n.arch === 'Physical') { 
+                        globalAiSubscriptionUnits[c.sla].physCores += (nCores * nQty); 
+                        globalAiSubscriptionUnits[c.sla].physNodes += nQty; 
+                    } else { 
+                        globalAiSubscriptionUnits[c.sla].virtCores += (nCores * nQty); 
+                    }
+                }
+
                 if (n.isWorker || n.isAI) {
                     if (n.arch === 'Physical') { 
-                        summaryData[key].physCores += (nCores * nQty); summaryData[key].physNodes += nQty;
-                        globalAiCoresTotal[c.sla].physCores += (nCores * nQty); globalAiCoresTotal[c.sla].physNodes += nQty;
+                        summaryData[key].physCores += (nCores * nQty); 
+                        summaryData[key].physNodes += nQty;
                     } else { 
                         summaryData[key].virtCores += (nCores * nQty); 
-                        globalAiCoresTotal[c.sla].virtCores += (nCores * nQty);
                     }
                 }
             });
@@ -520,7 +529,7 @@
             });
 
             SLAS.forEach(sla => {
-                const d = globalAiCoresTotal[sla];
+                const d = globalAiSubscriptionUnits[sla];
                 if (d.physCores === 0 && d.virtCores === 0) return;
                 const skuV = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && !s.isBM);
                 const skuBM = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && s.isBM);
