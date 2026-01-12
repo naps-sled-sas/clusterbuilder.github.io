@@ -78,7 +78,7 @@
 
         .cluster-summary-table {
             flex: 1.5;
-            min-width: 280px;
+            min-width: 300px;
             border-collapse: collapse;
             font-size: 0.75rem;
             background: #fafafa;
@@ -98,9 +98,13 @@
         }
 
         .tooltip:hover::after {
-            content: "Quorum requires 3 or 5 Control Plane nodes for cluster stability.";
             position: absolute; left: 20px; top: 0; background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
+        
+        /* Tooltip content logic */
+        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for application high availability."; }
+        .tip-cp:hover::after { content: "Quorum requires 3 or 5 Control Plane nodes for cluster stability."; }
+        .tip-sub:hover::after { content: "Only worker node cores require subscriptions."; }
 
         .cluster-name-input {
             font-size: 1.5rem; font-weight: bold; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 4px 0; width: 100%; margin-bottom: 10px; color: var(--text);
@@ -126,13 +130,16 @@
         .node-actions button { background: none; border: none; color: #cc0000; cursor: pointer; font-size: 1.2rem; }
         .node-card.is-cp .node-actions button { color: #ff9b9b; }
 
-        .node-input-group { font-size: 0.85rem; margin-top: 10px; }
-        label.group-label { font-weight: bold; display: block; margin-bottom: 2px; color: #444; }
+        .node-input-group { font-size: 0.85rem; margin-top: 12px; }
+        label.group-label { font-weight: bold; display: block; margin-bottom: 5px; color: #444; }
         
+        .roles-container { display: flex; flex-direction: column; gap: 8px; }
+        .role-option { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .role-option input { width: auto; margin: 0; cursor: pointer; }
+
         input, select, textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-top: 4px; box-sizing: border-box; font-family: inherit; }
         textarea { resize: vertical; min-height: 40px; font-size: 0.8rem; }
 
-        /* Global Summary Styles */
         .global-summary-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; border-top: 2px solid #000; padding-top: 2rem; }
         .summary-box { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 2px solid transparent; transition: all 0.3s ease; position: relative; }
         .summary-box h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; font-size: 1.1rem; display: flex; align-items: center; justify-content: space-between; }
@@ -217,13 +224,13 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v23_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v26_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v23_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v26_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
@@ -319,18 +326,23 @@
             const infras = cluster.nodes.filter(n => n.isInfra).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
             const workers = cluster.nodes.filter(n => n.isWorker).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
             
-            // Calc entitled cores with quantity multiplier
             const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && n.isWorker).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && n.isWorker).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
 
             const cpIsInvalid = (cps !== 3 && cps !== 5);
+            const workersInvalid = (workers < 2);
+            
             const div = document.createElement('div');
             div.className = 'card cluster-card';
             div.innerHTML = `
                 <div class="cluster-header">
                     <div class="cluster-main-meta">
                         <input type="text" class="cluster-name-input" value="${cluster.name}" onchange="updateCluster('${cluster.id}', 'name', this.value)">
-                        <div style="display:flex; gap:10px;"><button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Add Node</button><button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone Cluster</button><button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete Cluster</button></div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Add Node</button>
+                            <button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone Cluster</button>
+                            ${state.clusters.length > 1 ? `<button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete Cluster</button>` : ''}
+                        </div>
                     </div>
                     <div class="cluster-controls">
                         <label class="group-label">Edition</label>
@@ -339,10 +351,12 @@
                         <select class="config-select" onchange="updateCluster('${cluster.id}', 'defaultArch', this.value)"><option value="Physical" ${cluster.defaultArch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${cluster.defaultArch === 'Virtual' ? 'selected' : ''}>Virtual</option></select>
                     </div>
                     <table class="cluster-summary-table">
-                        <tr><th>Infra / Workers</th><td>${infras} / ${workers}</td></tr>
-                        <tr class="${cpIsInvalid ? 'alert-text' : ''}"><th>Control Planes <span class="tooltip">i</span></th><td>${cps}</td></tr>
-                        <tr class="highlight-row"><th>Entitled physical cores</th><td>${entPhys}</td></tr>
-                        <tr class="highlight-row"><th>Entitled virtual cores</th><td>${entVirt}</td></tr>
+                        <tr class="${workersInvalid ? 'alert-text' : ''}">
+                            <th>Workers / Infra <span class="tooltip tip-worker">i</span></th><td>${workers} / ${infras}</td>
+                        </tr>
+                        <tr class="${cpIsInvalid ? 'alert-text' : ''}"><th>Control Planes <span class="tooltip tip-cp">i</span></th><td>${cps}</td></tr>
+                        <tr class="highlight-row"><th>Entitled physical cores <span class="tooltip tip-sub">i</span></th><td>${entPhys}</td></tr>
+                        <tr class="highlight-row"><th>Entitled virtual cores <span class="tooltip tip-sub">i</span></th><td>${entVirt}</td></tr>
                     </table>
                 </div>
                 <div class="node-grid"></div>
@@ -358,6 +372,7 @@
                     <div class="node-header">
                         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5">
                             <rect x="2" y="2" width="20" height="8" rx="1"></rect><rect x="2" y="14" width="20" height="8" rx="1"></rect>
+                            <circle cx="6" cy="6" r="0.5" fill="currentColor"></circle><circle cx="6" cy="18" r="0.5" fill="currentColor"></circle>
                         </svg>
                         <div style="font-size: 0.6rem; font-weight: bold; margin-top: 2px;">${node.isControlPlane ? 'CONTROL PLANE' : 'NODE'}</div>
                     </div>
@@ -366,11 +381,14 @@
                             <div class="node-input-group"><label class="group-label">Quantity</label><input type="number" value="${node.qty || 1}" min="1" onchange="updateNode('${cluster.id}', '${node.id}', 'qty', this.value)"></div>
                             <div class="node-input-group"><label class="group-label">Cores/Node</label><input type="number" value="${node.cores}" step="2" onchange="updateNode('${cluster.id}', '${node.id}', 'cores', this.value)"></div>
                         </div>
-                        <div class="node-input-group"><label class="group-label">Roles</label><div style="display:flex; flex-direction: column; gap:3px; font-size:0.75rem;">
-                            <label><input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"> Worker</label>
-                            <label><input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"> Infra</label>
-                            <label><input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"> Control Plane</label>
-                        </div></div>
+                        <div class="node-input-group">
+                            <label class="group-label">Roles</label>
+                            <div class="roles-container">
+                                <label class="role-option">Worker <input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"></label>
+                                <label class="role-option">Infra <input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"></label>
+                                <label class="role-option">Control Plane <input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"></label>
+                            </div>
+                        </div>
                         <div class="node-input-group"><label class="group-label">Architecture</label><select onchange="updateNode('${cluster.id}', '${node.id}', 'arch', this.value)"><option value="Physical" ${node.arch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${node.arch === 'Virtual' ? 'selected' : ''}>Virtual</option></select></div>
                         <div class="node-input-group"><label class="group-label">Notes</label><textarea placeholder="e.g. GPU, DB Cluster..." onchange="updateNode('${cluster.id}', '${node.id}', 'notes', this.value)">${node.notes || ""}</textarea></div>
                     </div>
@@ -436,13 +454,11 @@
             const skuV = state.skus.find(s => s.edition === ed && s.isBM === false);
             const skuBM = state.skus.find(s => s.edition === ed && s.isBM === true);
             
-            // Option 1: Core based (Phys/2 + Virt/4)
             const qty1 = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
             let p1 = skuV ? qty1 * (skuV.msrp * (1 - (skuV.discount / 100))) : 0;
             total1 += p1;
             html1 += `<tr><td><strong>${ed}</strong></td><td>${skuV ? skuV.code : 'N/A'}</td><td>${qty1}</td><td>${fmt(p1)}</td></tr>`;
 
-            // Option 2: BM node based (PhysNodes + Virt/4)
             const qtyBM = d.physNodes;
             const qtyV = Math.ceil(d.virtCores / 4);
             let p2 = (skuBM ? qtyBM * (skuBM.msrp * (1 - (skuBM.discount / 100))) : 0) + (skuV ? qtyV * (skuV.msrp * (1 - (skuV.discount / 100))) : 0);
