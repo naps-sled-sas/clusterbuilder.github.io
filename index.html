@@ -63,6 +63,7 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-outline { background: transparent; border: 1px solid var(--border); }
         .btn-success { background: var(--success); color: white; }
+        .btn-info { background: #0066cc; color: white; }
 
         .cluster-header {
             display: flex;
@@ -185,6 +186,7 @@
             <div style="display: flex; gap: 10px;">
                 <input type="file" id="csv-upload" accept=".csv" style="display: none;">
                 <button class="btn btn-success" onclick="document.getElementById('csv-upload').click()">Upload CSV</button>
+                <button class="btn btn-info" onclick="exportCSV()">Download CSV Template</button>
             </div>
         </div>
         <table style="width:100%; border-collapse: collapse;" id="sku-table">
@@ -224,13 +226,13 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v28_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v29_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v28_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v29_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
@@ -262,6 +264,22 @@
             newSkus.push(skuObj);
         }
         state.skus = newSkus;
+    }
+
+    function exportCSV() {
+        let csvContent = "sku,edition,sla,msrp,discount,bm\n";
+        state.skus.forEach(s => {
+            csvContent += `${s.code || ''},${s.edition},${s.sla},${s.msrp},${s.discount},${s.isBM}\n`;
+        });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "product_configuration.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function addCluster() { state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: "OpenShift Container Platform", sla: "Premium", defaultArch: "Physical", nodes: [] }); save(); render(); }
