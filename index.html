@@ -68,6 +68,7 @@
         .btn-outline { background: transparent; border: 1px solid var(--border); }
         .btn-success { background: var(--success); color: white; }
         .btn-info { background: #0066cc; color: white; }
+        .btn-reset { background: #444; color: white; } /* Reset button styling */
 
         .modal-overlay {
             display: none;
@@ -128,10 +129,10 @@
             position: absolute; left: 20px; top: 0; background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
         
-        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for application high availability."; }
-        .tip-cp:hover::after { content: "Quorum requires 3 or 5 Control Plane nodes for cluster stability."; }
-        .tip-sub:hover::after { content: "Only worker node cores require subscriptions."; }
-        .tip-ai:hover::after { content: "Count of AI accelerators, such as GPUs, attached to this node."; }
+        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for HA."; }
+        .tip-cp:hover::after { content: "Quorum requires 3 or 5 Control Plane nodes."; }
+        .tip-sub:hover::after { content: "Only worker/AI node cores require subscriptions."; }
+        .tip-ai:hover::after { content: "Count of AI accelerators (e.g. GPUs)."; }
 
         .cluster-name-input {
             font-size: 1.5rem; font-weight: bold; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 4px 0; width: 100%; margin-bottom: 10px; color: var(--text);
@@ -166,7 +167,6 @@
         input, select, textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-top: 4px; box-sizing: border-box; font-family: inherit; }
         textarea { resize: vertical; min-height: 40px; font-size: 0.8rem; }
 
-        /* Distribution Chart Restored */
         .global-summary-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; border-top: 2px solid #000; padding-top: 2rem; }
         .summary-box { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 2px solid transparent; position: relative; }
         .summary-box h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; font-size: 1.1rem; display: flex; align-items: center; justify-content: space-between; }
@@ -201,9 +201,10 @@
     <div style="font-weight: bold;">OpenShift cluster builder</div>
     <div style="display: flex; gap: 10px; align-items: center;">
         <button class="btn btn-primary" id="add-cluster-btn" style="background: #333;">+ Add Cluster</button>
+        <button id="reset-btn" class="btn btn-reset">Reset</button> 
         <button id="share-btn" class="btn" style="background: #333; color: white;">Share Link</button>
         <button id="open-config" title="Settings" style="background:none; border:none; cursor:pointer; color: white;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
     </div>
 </header>
@@ -260,15 +261,27 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v40_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v44_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v40_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v44_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
+
+    // Reset Functionality logic
+    document.getElementById('reset-btn').onclick = () => {
+        if (confirm("Reset all clusters and nodes to default? (Product Configuration will be preserved)")) {
+            state.clusters = [{ 
+                id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", 
+                sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false 
+            }];
+            save();
+            render();
+        }
+    };
 
     document.getElementById('open-config').onclick = () => document.getElementById('config-modal').style.display = 'flex';
     document.getElementById('close-config').onclick = () => document.getElementById('config-modal').style.display = 'none';
@@ -475,18 +488,15 @@
             c.nodes.forEach(n => {
                 const nQty = parseInt(n.qty) || 1, nCores = parseInt(n.cores) || 0, nAiAcc = parseInt(n.aiAcc) || 0;
                 
-                // Track Global Core Ratios for Chart
                 if (n.arch === 'Physical') totalPhysAll += (nCores * nQty);
                 else totalVirtAll += (nCores * nQty);
 
-                // Track AI Metrics
                 globalAiAccTotal[c.sla] += (nAiAcc * nQty);
                 if (n.isAI) {
                     if (n.arch === 'Physical') { globalAiSubscriptionUnits[c.sla].physCores += (nCores * nQty); globalAiSubscriptionUnits[c.sla].physNodes += nQty; }
                     else { globalAiSubscriptionUnits[c.sla].virtCores += (nCores * nQty); }
                 }
 
-                // Track Base Worker/AI Cents
                 if (n.isWorker || n.isAI) {
                     if (n.arch === 'Physical') { summaryData[key].physCores += (nCores * nQty); summaryData[key].physNodes += nQty; }
                     else { summaryData[key].virtCores += (nCores * nQty); }
@@ -514,7 +524,6 @@
             let html = chartHtml + `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
             let totalNet = 0;
 
-            // 1. Cluster Base SKUs
             Object.keys(summaryData).forEach(key => {
                 const [ed, sla] = key.split('|'), d = summaryData[key];
                 if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
@@ -535,7 +544,6 @@
                 html += `<tr><td><strong>${ed}</strong><br><small>${sla}</small></td><td>${rowCodes}</td><td>${rowQty}</td><td>${fmt(rowPrice)}</td></tr>`;
             });
 
-            // 2. AI Accelerator Global SKU
             SLAS.forEach(sla => {
                 if (globalAiAccTotal[sla] > 0) {
                     const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
@@ -545,7 +553,6 @@
                 }
             });
 
-            // 3. OpenShift AI Core-logic SKU
             SLAS.forEach(sla => {
                 const d = globalAiSubscriptionUnits[sla];
                 if (d.physCores === 0 && d.virtCores === 0) return;
