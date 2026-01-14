@@ -271,28 +271,31 @@
 <div id="share-banner" class="share-banner">Link copied to clipboard</div>
 
 <script>
-    const EDITIONS = ["OpenShift Virtualization Engine", "OpenShift Kubernetes Engine", "OpenShift Container Platform", "OpenShift Platform Plus", "OpenShift AI", "AI Accelerator"];
+    // Config Master Editions list (used for SKUs)
+    const ALL_EDITIONS = ["OpenShift Virtualization Engine", "OpenShift Kubernetes Engine", "OpenShift Container Platform", "OpenShift Platform Plus", "OpenShift AI", "AI Accelerator"];
+    // Display editions for Cluster Selector (Filtered)
+    const DISPLAY_EDITIONS = ["OpenShift Virtualization Engine", "OpenShift Kubernetes Engine", "OpenShift Container Platform", "OpenShift Platform Plus"];
     const SLAS = ["Standard", "Premium"];
 
     let state = {
         skus: [],
-        clusters: [{ id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false }]
+        clusters: [{ id: "c_init", name: "Primary Cluster", edition: DISPLAY_EDITIONS[2], sla: SLAS[1], defaultArch: "Physical", nodes: [], isCollapsed: false }]
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v53_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v54_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v53_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v54_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
     document.getElementById('reset-btn').onclick = () => {
-        if (confirm("Reset all clusters and nodes? (Product Config will be saved)")) {
-            state.clusters = [{ id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false }];
+        if (confirm("Reset all clusters and nodes to default? (Product Config will be saved)")) {
+            state.clusters = [{ id: "c_init", name: "Primary Cluster", edition: DISPLAY_EDITIONS[2], sla: SLAS[1], defaultArch: "Physical", nodes: [], isCollapsed: false }];
             save(); render();
         }
     };
@@ -339,7 +342,7 @@
                 id: getNewId('s'),
                 code: map.sku !== -1 ? vals[map.sku] || '' : '',
                 desc: map.desc !== -1 ? vals[map.desc] || '' : '',
-                edition: impEd || EDITIONS[2],
+                edition: impEd || DISPLAY_EDITIONS[2],
                 sla: map.sla !== -1 ? vals[map.sla] || SLAS[1] : SLAS[1],
                 msrp: map.msrp !== -1 ? parseFloat(vals[map.msrp]) || 0 : 0,
                 discount: map.disc !== -1 ? parseFloat(vals[map.disc]) || 0 : 0,
@@ -363,7 +366,7 @@
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
-    function addCluster() { state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: "OpenShift Container Platform", sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false }); save(); render(); }
+    function addCluster() { state.clusters.push({ id: getNewId('c'), name: "New Cluster", edition: DISPLAY_EDITIONS[2], sla: SLAS[1], defaultArch: "Physical", nodes: [], isCollapsed: false }); save(); render(); }
     function cloneCluster(id) {
         const target = state.clusters.find(c => c.id === id);
         if (target) {
@@ -399,7 +402,7 @@
     }
 
     function deleteNode(clusterId, nodeId) { const c = state.clusters.find(c => c.id === clusterId); if (c) { c.nodes = c.nodes.filter(n => n.id !== nodeId); save(); render(); } }
-    function addSkuRow() { state.skus.push({id: getNewId('s'), code: '', desc: '', edition: EDITIONS[2], sla: "Premium", msrp: 0, discount: 0, isBM: false}); save(); render(); }
+    function addSkuRow() { state.skus.push({id: getNewId('s'), code: '', desc: '', edition: ALL_EDITIONS[2], sla: SLAS[1], msrp: 0, discount: 0, isBM: false}); save(); render(); }
     function updateSku(id, field, val) { const s = state.skus.find(s => s.id === id); if (s) s[field] = val; save(); renderGlobalSummaries(); }
     function deleteSku(id) { state.skus = state.skus.filter(s => s.id !== id); save(); render(); }
 
@@ -427,7 +430,6 @@
         Object.keys(summaryData).forEach(key => {
             const [ed, sla] = key.split('|'), d = summaryData[key];
             if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
-            // Explicit Option 1 Exclusion Logic
             if (!isOpt2 && ed === "OpenShift Virtualization Engine") return;
             
             const sV = state.skus.find(s => s.edition === ed && s.sla === sla && !s.isBM);
@@ -494,7 +496,7 @@
                         ${!cluster.isCollapsed ? `<div style="display:flex; gap:10px; margin-top:5px;"><button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Node</button><button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone</button><button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete</button></div>` : ''}
                     </div>
                     <div class="cluster-controls">
-                        <label class="group-label">Edition</label><select onchange="updateCluster('${cluster.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${cluster.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
+                        <label class="group-label">Edition</label><select onchange="updateCluster('${cluster.id}', 'edition', this.value)">${DISPLAY_EDITIONS.map(e => `<option ${cluster.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
                         <label class="group-label">SLA</label><select onchange="updateCluster('${cluster.id}', 'sla', this.value)">${SLAS.map(s => `<option ${cluster.sla === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
                         <label class="group-label">Default Node Arch</label><select onchange="updateCluster('${cluster.id}', 'defaultArch', this.value)"><option value="Physical" ${cluster.defaultArch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${cluster.defaultArch === 'Virtual' ? 'selected' : ''}>Virtual</option></select>
                     </div>
@@ -526,7 +528,7 @@
         document.getElementById('sku-body').innerHTML = state.skus.map(s => `<tr>
             <td class="col-sku"><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td>
             <td><input class="table-input" type="text" value="${s.desc || ''}" title="${s.desc || ''}" oninput="updateSku('${s.id}', 'desc', this.value)"></td>
-            <td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
+            <td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${ALL_EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td><select class="table-input" onchange="updateSku('${s.id}', 'sla', this.value)">${SLAS.map(sla => `<option ${s.sla === sla ? 'selected' : ''}>${sla}</option>`).join('')}</select></td>
             <td class="col-msrp"><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td>
             <td class="col-disc"><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td>
