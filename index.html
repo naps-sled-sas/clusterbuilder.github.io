@@ -204,7 +204,7 @@
         <button id="reset-btn" class="btn btn-reset">Reset</button> 
         <button id="share-btn" class="btn" style="background: #333; color: white;">Share Link</button>
         <button id="open-config" title="Settings" style="background:none; border:none; cursor:pointer; color: white;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
     </div>
 </header>
@@ -260,25 +260,22 @@
 
     let state = {
         skus: [],
-        clusters: [{ 
-            id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", 
-            sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false 
-        }]
+        clusters: [{ id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false }]
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v46_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v49_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v46_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v49_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
     document.getElementById('reset-btn').onclick = () => {
-        if (confirm("Reset all clusters and nodes to default? (Product Configuration will be preserved)")) {
+        if (confirm("Reset all clusters and nodes? (Product Config will be saved)")) {
             state.clusters = [{ id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false }];
             save(); render();
         }
@@ -296,31 +293,54 @@
     });
 
     function parseCSV(csvText) {
-        const lines = csvText.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const lines = csvText.split(/\r?\n/);
+        if (lines.length < 2) return;
+        
+        // Robust regex to split by comma while respecting quoted fields
+        const splitLine = (str) => {
+            const result = [];
+            let cell = '', inQuote = false;
+            for (let char of str) {
+                if (char === '"') inQuote = !inQuote;
+                else if (char === ',' && !inQuote) { result.push(cell.trim()); cell = ''; }
+                else cell += char;
+            }
+            result.push(cell.trim());
+            return result;
+        };
+
+        const headers = splitLine(lines[0]).map(h => h.toLowerCase());
+        const map = {
+            sku: headers.indexOf('sku'),
+            desc: headers.indexOf('description'),
+            ed: headers.indexOf('edition'),
+            sla: headers.indexOf('sla'),
+            msrp: headers.indexOf('msrp'),
+            disc: headers.indexOf('discount'),
+            bm: headers.indexOf('bm')
+        };
+
         const newSkus = [];
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
-            const values = lines[i].split(',').map(v => v.trim());
-            const skuObj = { id: getNewId('s') };
-            headers.forEach((header, index) => {
-                const val = values[index];
-                if (header === 'sku') skuObj.code = val;
-                if (header === 'description') skuObj.desc = val;
-                if (header === 'edition') skuObj.edition = val;
-                if (header === 'sla') skuObj.sla = val;
-                if (header === 'msrp') skuObj.msrp = parseFloat(val) || 0;
-                if (header === 'discount') skuObj.discount = parseFloat(val) || 0;
-                if (header === 'bm') skuObj.isBM = (val && val.toLowerCase() === 'true');
+            const vals = splitLine(lines[i]);
+            newSkus.push({
+                id: getNewId('s'),
+                code: map.sku !== -1 ? vals[map.sku] || '' : '',
+                desc: map.desc !== -1 ? vals[map.desc] || '' : '',
+                edition: map.ed !== -1 ? vals[map.ed] || EDITIONS[2] : EDITIONS[2],
+                sla: map.sla !== -1 ? vals[map.sla] || SLAS[1] : SLAS[1],
+                msrp: map.msrp !== -1 ? parseFloat(vals[map.msrp]) || 0 : 0,
+                discount: map.disc !== -1 ? parseFloat(vals[map.disc]) || 0 : 0,
+                isBM: map.bm !== -1 ? vals[map.bm]?.toLowerCase() === 'true' : false
             });
-            newSkus.push(skuObj);
         }
         state.skus = newSkus;
     }
 
     function exportCSV() {
         let csvContent = "sku,description,edition,sla,msrp,discount,bm\n";
-        state.skus.forEach(s => { csvContent += `${s.code || ''},${s.desc || ''},${s.edition},${s.sla},${s.msrp},${s.discount},${s.isBM}\n`; });
+        state.skus.forEach(s => { csvContent += `"${s.code || ''}","${s.desc || ''}","${s.edition}","${s.sla}",${s.msrp},${s.discount},${s.isBM}\n`; });
         downloadBlob(csvContent, "sku_configurations.csv");
     }
 
@@ -407,19 +427,19 @@
                 const qV = Math.ceil(d.virtCores / 4);
                 if (sBM && d.physNodes > 0) {
                     const price = d.physNodes * (sBM.msrp * (1 - (sBM.discount / 100)));
-                    rows.push({ ed, sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, price, msrp: sBM.msrp, disc: sBM.discount, type: 'BM' });
+                    rows.push({ ed, sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, price, msrp: sBM.msrp, disc: sBM.discount });
                     totalNet += price;
                 }
                 if (sV && qV > 0) {
                     const price = qV * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qV, price, msrp: sV.msrp, disc: sV.discount, type: 'V' });
+                    rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qV, price, msrp: sV.msrp, disc: sV.discount });
                     totalNet += price;
                 }
             } else {
                 const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
                 if (sV && qTotal > 0) {
                     const price = qTotal * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qTotal, price, msrp: sV.msrp, disc: sV.discount, type: '' });
+                    rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qTotal, price, msrp: sV.msrp, disc: sV.discount });
                     totalNet += price;
                 }
             }
@@ -430,7 +450,7 @@
                 const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
                 if(sku) {
                    const price = tAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100)));
-                   rows.push({ ed: "AI Accelerator", sla, code: sku.code, desc: sku.desc, qty: tAccTotal[sla], type: '', price, msrp: sku.msrp, disc: sku.discount });
+                   rows.push({ ed: "AI Accelerator", sla, code: sku.code, desc: sku.desc, qty: tAccTotal[sla], price, msrp: sku.msrp, disc: sku.discount });
                    totalNet += price;
                 }
             }
@@ -442,19 +462,19 @@
                 const qV = Math.ceil(d.virtCores / 4);
                 if (sBM && d.physNodes > 0) {
                     const price = d.physNodes * (sBM.msrp * (1 - (sBM.discount / 100)));
-                    rows.push({ ed: "OpenShift AI", sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, type: 'BM', price, msrp: sBM.msrp, disc: sBM.discount });
+                    rows.push({ ed: "OpenShift AI", sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, price, msrp: sBM.msrp, disc: sBM.discount });
                     totalNet += price;
                 }
                 if (sV && qV > 0) {
                     const price = qV * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qV, type: 'V', price, msrp: sV.msrp, disc: sV.discount });
+                    rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qV, price, msrp: sV.msrp, disc: sV.discount });
                     totalNet += price;
                 }
             } else {
                 const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
                 if (sV && qTotal > 0) {
                     const price = qTotal * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qTotal, type: '', price, msrp: sV.msrp, disc: sV.discount });
+                    rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qTotal, price, msrp: sV.msrp, disc: sV.discount });
                     totalNet += price;
                 }
             }
@@ -559,13 +579,13 @@
             let body = ""; const grouped = {};
             data.rows.forEach(r => {
                 const k = `${r.ed}|${r.sla}`;
-                if(!grouped[k]) grouped[k] = { ed: r.ed, sla: r.sla, codes: [], qtys: [], price: 0 };
-                grouped[k].codes.push(r.code); grouped[k].qtys.push(`${r.qty}${r.type ? ' ' + r.type : ''}`); grouped[k].price += r.price;
+                if(!grouped[k]) grouped[k] = { ed: r.ed, sla: r.sla, codes: [], price: 0 };
+                grouped[k].codes.push(`${r.code} (${r.qty})`); grouped[k].price += r.price;
             });
             Object.values(grouped).forEach(g => {
-                body += `<tr><td><strong>${g.ed}</strong><br><small>${g.sla}</small></td><td>${g.codes.join('<br>')}</td><td style="padding: 10px 5px;">${g.qtys.join(' / ')}</td><td>${fmt(g.price)}</td></tr>`;
+                body += `<tr><td><strong>${g.ed}</strong><br><small>${g.sla}</small></td><td>${g.codes.join('<br>')}</td><td>${fmt(g.price)}</td></tr>`;
             });
-            return `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th style="min-width: 80px;">Qty</th><th>Price</th></tr></thead><tbody>${body}</tbody></table>`;
+            return `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKUs (Qty)</th><th>Price</th></tr></thead><tbody>${body}</tbody></table>`;
         };
 
         bom1Container.innerHTML = chartHtml + genTableHtml(opt1) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt1.total)}</span></div>` + (isOpt1Better && opt2.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(Math.abs(opt1.total - opt2.total))}</div>` : '');
