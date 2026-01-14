@@ -129,7 +129,7 @@
             position: absolute; left: 20px; top: 0; background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
         
-        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for application HA."; }
+        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for HA."; }
         .tip-cp:hover::after { content: "Quorum requires 3 or 5 Control Plane nodes."; }
         .tip-sub:hover::after { content: "Only worker/AI node cores require subscriptions."; }
         .tip-ai:hover::after { content: "Count of AI accelerators (e.g. GPUs)."; }
@@ -267,24 +267,20 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v45_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v46_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v45_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v46_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
     document.getElementById('reset-btn').onclick = () => {
         if (confirm("Reset all clusters and nodes to default? (Product Configuration will be preserved)")) {
-            state.clusters = [{ 
-                id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", 
-                sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false 
-            }];
-            save();
-            render();
+            state.clusters = [{ id: "c_init", name: "Primary Cluster", edition: "OpenShift Container Platform", sla: "Premium", defaultArch: "Physical", nodes: [], isCollapsed: false }];
+            save(); render();
         }
     };
 
@@ -340,11 +336,9 @@
         const target = state.clusters.find(c => c.id === id);
         if (target) {
             const newCluster = JSON.parse(JSON.stringify(target));
-            newCluster.id = getNewId('c');
-            newCluster.name += " (Copy)";
+            newCluster.id = getNewId('c'); newCluster.name += " (Copy)";
             newCluster.nodes = newCluster.nodes.map(n => ({ ...n, id: getNewId('n') }));
-            state.clusters.push(newCluster);
-            save(); render();
+            state.clusters.push(newCluster); save(); render();
         }
     }
     function deleteCluster(id) { if (state.clusters.length > 1) { state.clusters = state.clusters.filter(c => c.id !== id); save(); render(); } }
@@ -366,8 +360,7 @@
                 else if (field === 'qty') { n.qty = Math.max(1, v); }
                 else { n.aiAcc = Math.max(0, v); }
             } else if (field === 'isInfra' || field === 'isWorker' || field === 'isAI') {
-                n.isInfra = n.isWorker = n.isAI = false;
-                n[field] = val;
+                n.isInfra = n.isWorker = n.isAI = false; n[field] = val;
             } else { n[field] = val; } 
             save(); render();
         }
@@ -378,23 +371,21 @@
     function updateSku(id, field, val) { const s = state.skus.find(s => s.id === id); if (s) s[field] = val; save(); renderGlobalSummaries(); }
     function deleteSku(id) { state.skus = state.skus.filter(s => s.id !== id); save(); render(); }
 
-    function calculateBOMData(isOpt2) {
+    function getBOMCalculation(isOpt2) {
         const summaryData = {};
-        let globalAiAccTotal = { Standard: 0, Premium: 0 };
-        let globalAiSubscriptionUnits = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
+        let tAccTotal = { Standard: 0, Premium: 0 };
+        let tAiSubs = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
 
         state.clusters.forEach(c => {
             const key = `${c.edition}|${c.sla}`;
             if (!summaryData[key]) summaryData[key] = { physNodes: 0, physCores: 0, virtCores: 0 };
             c.nodes.forEach(n => {
                 const nQty = parseInt(n.qty) || 1, nCores = parseInt(n.cores) || 0, nAiAcc = parseInt(n.aiAcc) || 0;
-                
-                globalAiAccTotal[c.sla] += (nAiAcc * nQty);
+                tAccTotal[c.sla] += (nAiAcc * nQty);
                 if (n.isAI) {
-                    if (n.arch === 'Physical') { globalAiSubscriptionUnits[c.sla].physCores += (nCores * nQty); globalAiSubscriptionUnits[c.sla].physNodes += nQty; }
-                    else { globalAiSubscriptionUnits[c.sla].virtCores += (nCores * nQty); }
+                    if (n.arch === 'Physical') { tAiSubs[c.sla].physCores += (nCores * nQty); tAiSubs[c.sla].physNodes += nQty; }
+                    else { tAiSubs[c.sla].virtCores += (nCores * nQty); }
                 }
-
                 if (n.isWorker || n.isAI) {
                     if (n.arch === 'Physical') { summaryData[key].physCores += (nCores * nQty); summaryData[key].physNodes += nQty; }
                     else { summaryData[key].virtCores += (nCores * nQty); }
@@ -402,10 +393,9 @@
             });
         });
 
-        const exportRows = [];
+        const rows = [];
         let totalNet = 0;
 
-        // Base Core calculation
         Object.keys(summaryData).forEach(key => {
             const [ed, sla] = key.split('|'), d = summaryData[key];
             if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
@@ -416,39 +406,34 @@
                 const qV = Math.ceil(d.virtCores / 4);
                 if (skuBM && d.physNodes > 0) {
                     const price = d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
-                    exportRows.push({ ed, sla, code: skuBM.code, qty: d.physNodes, price, msrp: skuBM.msrp, disc: skuBM.discount });
+                    rows.push({ ed, sla, code: skuBM.code, qty: d.physNodes, type: 'BM', price, msrp: skuBM.msrp, disc: skuBM.discount });
                     totalNet += price;
                 }
                 if (skuV && qV > 0) {
                     const price = qV * (skuV.msrp * (1 - (skuV.discount / 100)));
-                    exportRows.push({ ed, sla, code: skuV.code, qty: qV, price, msrp: skuV.msrp, disc: skuV.discount });
+                    rows.push({ ed, sla, code: skuV.code, qty: qV, type: 'V', price, msrp: skuV.msrp, disc: skuV.discount });
                     totalNet += price;
                 }
             } else {
                 const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
-                const price = skuV ? qTotal * (skuV.msrp * (1 - (skuV.discount / 100))) : 0;
-                if (price > 0) {
-                    exportRows.push({ ed, sla, code: skuV.code, qty: qTotal, price, msrp: skuV.msrp, disc: skuV.discount });
+                if (skuV && qTotal > 0) {
+                    const price = qTotal * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    rows.push({ ed, sla, code: skuV.code, qty: qTotal, type: '', price, msrp: skuV.msrp, disc: skuV.discount });
                     totalNet += price;
                 }
             }
         });
 
-        // AI Accelerator
         SLAS.forEach(sla => {
-            if (globalAiAccTotal[sla] > 0) {
+            if (tAccTotal[sla] > 0) {
                 const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
                 if(sku) {
-                   const price = globalAiAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100)));
-                   exportRows.push({ ed: "AI Accelerator", sla, code: sku.code, qty: globalAiAccTotal[sla], price, msrp: sku.msrp, disc: sku.discount });
+                   const price = tAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100)));
+                   rows.push({ ed: "AI Accelerator", sla, code: sku.code, qty: tAccTotal[sla], type: '', price, msrp: sku.msrp, disc: sku.discount });
                    totalNet += price;
                 }
             }
-        });
-
-        // OpenShift AI Subscriptions
-        SLAS.forEach(sla => {
-            const d = globalAiSubscriptionUnits[sla];
+            const d = tAiSubs[sla];
             if (d.physCores === 0 && d.virtCores === 0) return;
             const skuV = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && !s.isBM);
             const skuBM = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && s.isBM);
@@ -456,32 +441,30 @@
                 const qV = Math.ceil(d.virtCores / 4);
                 if (skuBM && d.physNodes > 0) {
                     const price = d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
-                    exportRows.push({ ed: "OpenShift AI", sla, code: skuBM.code, qty: d.physNodes, price, msrp: skuBM.msrp, disc: skuBM.discount });
+                    rows.push({ ed: "OpenShift AI", sla, code: skuBM.code, qty: d.physNodes, type: 'BM', price, msrp: skuBM.msrp, disc: skuBM.discount });
                     totalNet += price;
                 }
                 if (skuV && qV > 0) {
                     const price = qV * (skuV.msrp * (1 - (skuV.discount / 100)));
-                    exportRows.push({ ed: "OpenShift AI", sla, code: skuV.code, qty: qV, price, msrp: skuV.msrp, disc: skuV.discount });
+                    rows.push({ ed: "OpenShift AI", sla, code: skuV.code, qty: qV, type: 'V', price, msrp: skuV.msrp, disc: skuV.discount });
                     totalNet += price;
                 }
             } else {
                 const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
                 if (skuV && qTotal > 0) {
                     const price = qTotal * (skuV.msrp * (1 - (skuV.discount / 100)));
-                    exportRows.push({ ed: "OpenShift AI", sla, code: skuV.code, qty: qTotal, price, msrp: skuV.msrp, disc: skuV.discount });
+                    rows.push({ ed: "OpenShift AI", sla, code: skuV.code, qty: qTotal, type: '', price, msrp: skuV.msrp, disc: skuV.discount });
                     totalNet += price;
                 }
             }
         });
-        return { exportRows, total: totalNet };
+        return { rows, total: totalNet };
     }
 
     function exportBOMToCSV(isOpt2) {
-        const data = calculateBOMData(isOpt2);
-        let csv = "Edition,SLA,SKU Code,Quantity,Unit MSRP,Discount (%),Net Price\n";
-        data.exportRows.forEach(r => { 
-            csv += `"${r.ed}","${r.sla}","${r.code}",${r.qty},${r.msrp},${r.disc},${r.price}\n`; 
-        });
+        const data = getBOMCalculation(isOpt2);
+        let csv = "SKU,Edition,SLA,Quantity,MSRP,Discount,Net Price\n";
+        data.rows.forEach(r => { csv += `"${r.code}","${r.ed}","${r.sla}",${r.qty},${r.msrp},${r.disc},${r.price}\n`; });
         csv += `,,,,,,${data.total}\n`;
         downloadBlob(csv, `BOM_Option_${isOpt2 ? '2' : '1'}.csv`);
     }
@@ -506,10 +489,7 @@
             div.innerHTML = `
                 <div class="cluster-header">
                     <div class="cluster-main-meta">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <button class="btn btn-outline" onclick="toggleCollapse('${cluster.id}')">${cluster.isCollapsed ? '▶' : '▼'}</button>
-                            <input type="text" class="cluster-name-input" value="${cluster.name}" onchange="updateCluster('${cluster.id}', 'name', this.value)">
-                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;"><button class="btn btn-outline" onclick="toggleCollapse('${cluster.id}')">${cluster.isCollapsed ? '▶' : '▼'}</button><input type="text" class="cluster-name-input" value="${cluster.name}" onchange="updateCluster('${cluster.id}', 'name', this.value)"></div>
                         ${!cluster.isCollapsed ? `<div style="display:flex; gap:10px; margin-top:5px;"><button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Node</button><button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone</button><button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete</button></div>` : ''}
                     </div>
                     <div class="cluster-controls">
@@ -558,8 +538,7 @@
         state.clusters.forEach(c => {
             c.nodes.forEach(n => {
                 const nQty = parseInt(n.qty) || 1, nCores = parseInt(n.cores) || 0;
-                if (n.arch === 'Physical') tPhysAll += (nCores * nQty);
-                else tVirtAll += (nCores * nQty);
+                if (n.arch === 'Physical') tPhysAll += (nCores * nQty); else tVirtAll += (nCores * nQty);
             });
         });
         const grandTotalCores = tPhysAll + tVirtAll;
@@ -568,21 +547,16 @@
         const chartHtml = `<div class="distribution-chart"><div class="dist-bar dist-phys" style="width: ${physPct}%">${physPct > 12 ? 'Phys' : ''}</div><div class="dist-bar dist-virt" style="width: ${virtPct}%">${virtPct > 12 ? 'Virt' : ''}</div></div><div class="chart-legend"><div class="legend-item"><div class="legend-box dist-phys"></div> Physical Cores (${tPhysAll})</div><div class="legend-item"><div class="legend-box dist-virt"></div> Virtual Cores (${tVirtAll})</div></div>`;
         const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
         
-        const opt1 = calculateBOMData(false), opt2 = calculateBOMData(true);
-        const savings = Math.abs(opt1.total - opt2.total);
+        const opt1 = getBOMCalculation(false), opt2 = getBOMCalculation(true);
         const isOpt1Better = opt1.total > 0 && (opt2.total <= 0 || opt1.total < opt2.total);
         const isOpt2Better = opt2.total > 0 && (opt1.total <= 0 || opt2.total < opt1.total);
 
-        document.getElementById('option-1-box').className = 'summary-box' + (isOpt1Better ? ' recommended' : '');
-        document.getElementById('option-2-box').className = 'summary-box' + (isOpt2Better ? ' recommended' : '');
-
         const genTableHtml = (data) => {
-            let body = "";
-            const grouped = {};
-            data.exportRows.forEach(r => {
+            let body = ""; const grouped = {};
+            data.rows.forEach(r => {
                 const k = `${r.ed}|${r.sla}`;
                 if(!grouped[k]) grouped[k] = { ed: r.ed, sla: r.sla, codes: [], qtys: [], price: 0 };
-                grouped[k].codes.push(r.code); grouped[k].qtys.push(r.qty); grouped[k].price += r.price;
+                grouped[k].codes.push(r.code); grouped[k].qtys.push(`${r.qty}${r.type ? ' ' + r.type : ''}`); grouped[k].price += r.price;
             });
             Object.values(grouped).forEach(g => {
                 body += `<tr><td><strong>${g.ed}</strong><br><small>${g.sla}</small></td><td>${g.codes.join('<br>')}</td><td style="padding: 10px 5px;">${g.qtys.join(' / ')}</td><td>${fmt(g.price)}</td></tr>`;
@@ -590,8 +564,8 @@
             return `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th style="min-width: 80px;">Qty</th><th>Price</th></tr></thead><tbody>${body}</tbody></table>`;
         };
 
-        bom1Container.innerHTML = chartHtml + genTableHtml(opt1) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt1.total)}</span></div>` + (isOpt1Better && opt2.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
-        bom2Container.innerHTML = chartHtml + genTableHtml(opt2) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt2.total)}</span></div>` + (isOpt2Better && opt1.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
+        bom1Container.innerHTML = chartHtml + genTableHtml(opt1) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt1.total)}</span></div>` + (isOpt1Better && opt2.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(Math.abs(opt1.total - opt2.total))}</div>` : '');
+        bom2Container.innerHTML = chartHtml + genTableHtml(opt2) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt2.total)}</span></div>` + (isOpt2Better && opt1.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(Math.abs(opt1.total - opt2.total))}</div>` : '');
     }
 
     document.getElementById('add-cluster-btn').onclick = addCluster;
