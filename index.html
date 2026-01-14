@@ -83,9 +83,9 @@
             background: white;
             padding: 2rem;
             border-radius: 8px;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 80vh;
+            width: 95%;
+            max-width: 1100px;
+            max-height: 85vh;
             overflow-y: auto;
             position: relative;
         }
@@ -191,6 +191,14 @@
         .total-row { font-weight: bold; background: #fff5f5; }
 
         .share-banner { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; display: none; z-index: 1000; }
+
+        /* Configuration Table Shrink Rules */
+        .col-sku { width: 120px; }
+        .col-msrp { width: 80px; }
+        .col-disc { width: 70px; }
+        .col-bm { width: 45px; text-align: center; }
+        .col-actions { width: 30px; }
+        .table-input { padding: 6px 4px; font-size: 0.75rem; }
         
         @media (max-width: 800px) { .global-summary-container { grid-template-columns: 1fr; } }
     </style>
@@ -220,15 +228,25 @@
                 <button class="btn btn-info" onclick="exportCSV()">Download SKUs CSV</button>
             </div>
         </div>
-        <table style="width:100%; border-collapse: collapse;" id="sku-table">
+        <table style="width:100%; border-collapse: collapse; table-layout: auto;" id="sku-table">
             <thead>
-                <tr style="text-align: left; font-size: 0.8rem;">
-                    <th>SKU</th><th>Description</th><th>Edition</th><th>SLA</th><th>MSRP ($)</th><th>Discount (%)</th><th>BM?</th><th></th>
+                <tr style="text-align: left; font-size: 0.75rem; color: #666;">
+                    <th class="col-sku">SKU</th>
+                    <th>Description</th>
+                    <th style="width: 180px;">Edition</th>
+                    <th style="width: 90px;">SLA</th>
+                    <th class="col-msrp">MSRP ($)</th>
+                    <th class="col-disc">Disc. (%)</th>
+                    <th class="col-bm">BM?</th>
+                    <th class="col-actions"></th>
                 </tr>
             </thead>
             <tbody id="sku-body"></tbody>
         </table>
-        <button class="btn btn-outline" style="margin-top:10px; width:100%;" onclick="addSkuRow()">+ Add Manual SKU</button>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn btn-outline" style="flex: 3;" onclick="addSkuRow()">+ Add Manual SKU</button>
+            <button class="btn" style="flex: 1; background: #dc3545; color: white;" onclick="clearAllSkus()">Clear All Entries</button>
+        </div>
     </div>
 </div>
 
@@ -264,13 +282,13 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v49_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v50_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v49_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v50_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
@@ -280,6 +298,13 @@
             save(); render();
         }
     };
+
+    function clearAllSkus() {
+        if (confirm("Delete all SKU entries in the Product Configuration?")) {
+            state.skus = [];
+            save(); render();
+        }
+    }
 
     document.getElementById('open-config').onclick = () => document.getElementById('config-modal').style.display = 'flex';
     document.getElementById('close-config').onclick = () => document.getElementById('config-modal').style.display = 'none';
@@ -295,8 +320,6 @@
     function parseCSV(csvText) {
         const lines = csvText.split(/\r?\n/);
         if (lines.length < 2) return;
-        
-        // Robust regex to split by comma while respecting quoted fields
         const splitLine = (str) => {
             const result = [];
             let cell = '', inQuote = false;
@@ -308,18 +331,8 @@
             result.push(cell.trim());
             return result;
         };
-
         const headers = splitLine(lines[0]).map(h => h.toLowerCase());
-        const map = {
-            sku: headers.indexOf('sku'),
-            desc: headers.indexOf('description'),
-            ed: headers.indexOf('edition'),
-            sla: headers.indexOf('sla'),
-            msrp: headers.indexOf('msrp'),
-            disc: headers.indexOf('discount'),
-            bm: headers.indexOf('bm')
-        };
-
+        const map = { sku: headers.indexOf('sku'), desc: headers.indexOf('description'), ed: headers.indexOf('edition'), sla: headers.indexOf('sla'), msrp: headers.indexOf('msrp'), disc: headers.indexOf('discount'), bm: headers.indexOf('bm') };
         const newSkus = [];
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
@@ -396,7 +409,6 @@
         const summaryData = {};
         let tAccTotal = { Standard: 0, Premium: 0 };
         let tAiSubs = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
-
         state.clusters.forEach(c => {
             const key = `${c.edition}|${c.sla}`;
             if (!summaryData[key]) summaryData[key] = { physNodes: 0, physCores: 0, virtCores: 0 };
@@ -413,46 +425,26 @@
                 }
             });
         });
-
         const rows = [];
         let totalNet = 0;
-
         Object.keys(summaryData).forEach(key => {
             const [ed, sla] = key.split('|'), d = summaryData[key];
             if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
             const sV = state.skus.find(s => s.edition === ed && s.sla === sla && !s.isBM);
             const sBM = state.skus.find(s => s.edition === ed && s.sla === sla && s.isBM);
-            
             if (isOpt2) {
                 const qV = Math.ceil(d.virtCores / 4);
-                if (sBM && d.physNodes > 0) {
-                    const price = d.physNodes * (sBM.msrp * (1 - (sBM.discount / 100)));
-                    rows.push({ ed, sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, price, msrp: sBM.msrp, disc: sBM.discount });
-                    totalNet += price;
-                }
-                if (sV && qV > 0) {
-                    const price = qV * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qV, price, msrp: sV.msrp, disc: sV.discount });
-                    totalNet += price;
-                }
+                if (sBM && d.physNodes > 0) { const price = d.physNodes * (sBM.msrp * (1 - (sBM.discount / 100))); rows.push({ ed, sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, price, msrp: sBM.msrp, disc: sBM.discount }); totalNet += price; }
+                if (sV && qV > 0) { const price = qV * (sV.msrp * (1 - (sV.discount / 100))); rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qV, price, msrp: sV.msrp, disc: sV.discount }); totalNet += price; }
             } else {
                 const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
-                if (sV && qTotal > 0) {
-                    const price = qTotal * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qTotal, price, msrp: sV.msrp, disc: sV.discount });
-                    totalNet += price;
-                }
+                if (sV && qTotal > 0) { const price = qTotal * (sV.msrp * (1 - (sV.discount / 100))); rows.push({ ed, sla, code: sV.code, desc: sV.desc, qty: qTotal, price, msrp: sV.msrp, disc: sV.discount }); totalNet += price; }
             }
         });
-
         SLAS.forEach(sla => {
             if (tAccTotal[sla] > 0) {
                 const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
-                if(sku) {
-                   const price = tAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100)));
-                   rows.push({ ed: "AI Accelerator", sla, code: sku.code, desc: sku.desc, qty: tAccTotal[sla], price, msrp: sku.msrp, disc: sku.discount });
-                   totalNet += price;
-                }
+                if(sku) { const price = tAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100))); rows.push({ ed: "AI Accelerator", sla, code: sku.code, desc: sku.desc, qty: tAccTotal[sla], price, msrp: sku.msrp, disc: sku.discount }); totalNet += price; }
             }
             const d = tAiSubs[sla];
             if (d.physCores === 0 && d.virtCores === 0) return;
@@ -460,23 +452,11 @@
             const sBM = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && s.isBM);
             if (isOpt2) {
                 const qV = Math.ceil(d.virtCores / 4);
-                if (sBM && d.physNodes > 0) {
-                    const price = d.physNodes * (sBM.msrp * (1 - (sBM.discount / 100)));
-                    rows.push({ ed: "OpenShift AI", sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, price, msrp: sBM.msrp, disc: sBM.discount });
-                    totalNet += price;
-                }
-                if (sV && qV > 0) {
-                    const price = qV * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qV, price, msrp: sV.msrp, disc: sV.discount });
-                    totalNet += price;
-                }
+                if (sBM && d.physNodes > 0) { const price = d.physNodes * (sBM.msrp * (1 - (sBM.discount / 100))); rows.push({ ed: "OpenShift AI", sla, code: sBM.code, desc: sBM.desc, qty: d.physNodes, price, msrp: sBM.msrp, disc: sBM.discount }); totalNet += price; }
+                if (sV && qV > 0) { const price = qV * (sV.msrp * (1 - (sV.discount / 100))); rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qV, price, msrp: sV.msrp, disc: sV.discount }); totalNet += price; }
             } else {
                 const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
-                if (sV && qTotal > 0) {
-                    const price = qTotal * (sV.msrp * (1 - (sV.discount / 100)));
-                    rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qTotal, price, msrp: sV.msrp, disc: sV.discount });
-                    totalNet += price;
-                }
+                if (sV && qTotal > 0) { const price = qTotal * (sV.msrp * (1 - (sV.discount / 100))); rows.push({ ed: "OpenShift AI", sla, code: sV.code, desc: sV.desc, qty: qTotal, price, msrp: sV.msrp, disc: sV.discount }); totalNet += price; }
             }
         });
         return { rows, total: totalNet };
@@ -496,8 +476,10 @@
         state.clusters.forEach(cluster => {
             const cps = cluster.nodes.filter(n => n.isControlPlane).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
             const infras = cluster.nodes.filter(n => n.isInfra).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
-            const ais = cluster.nodes.filter(n => n.isAI).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const ais = cluster.nodes.filter(n => n.isWorker ? 0 : (n.isAI ? parseInt(n.qty) : 0), 0); // Logic fix for mutual exclusion
             const workers = cluster.nodes.filter(n => n.isWorker).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const aisFinal = cluster.nodes.filter(n => n.isAI).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+
             const tPhys = cluster.nodes.filter(n => n.arch === 'Physical').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const tVirt = cluster.nodes.filter(n => n.arch === 'Virtual').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
             const tAiAcc = cluster.nodes.reduce((s, n) => s + (parseInt(n.aiAcc || 0) * parseInt(n.qty)), 0);
@@ -519,7 +501,7 @@
                         <label class="group-label">Default Node Arch</label><select onchange="updateCluster('${cluster.id}', 'defaultArch', this.value)"><option value="Physical" ${cluster.defaultArch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${cluster.defaultArch === 'Virtual' ? 'selected' : ''}>Virtual</option></select>
                     </div>
                     <table class="cluster-summary-table">
-                        <tr class="${(workers + ais) < 2 ? 'alert-text' : ''}"><th>Workers / AI / Infra <span class="tooltip tip-worker">i</span></th><td>${workers} / ${ais} / ${infras}</td></tr>
+                        <tr class="${(workers + aisFinal) < 2 ? 'alert-text' : ''}"><th>Workers / AI / Infra <span class="tooltip tip-worker">i</span></th><td>${workers} / ${aisFinal} / ${infras}</td></tr>
                         <tr class="${(cps !== 3 && cps !== 5) ? 'alert-text' : ''}"><th>Control Planes <span class="tooltip tip-cp">i</span></th><td>${cps}</td></tr>
                         <tr><th>Total physical cores</th><td>${tPhys}</td></tr><tr><th>Total virtual cores</th><td>${tVirt}</td></tr><tr><th>Total AI Accelerators</th><td>${tAiAcc}</td></tr><tr><th>OpenShift AI cores</th><td>${tAiCores}</td></tr>
                         <tr class="highlight-row"><th>Ent. Physical Cores <span class="tooltip tip-sub">i</span></th><td>${entPhys}</td></tr><tr class="highlight-row"><th>Ent. Virtual Cores <span class="tooltip tip-sub">i</span></th><td>${entVirt}</td></tr>
@@ -548,7 +530,16 @@
             });
             wrapper.appendChild(div);
         });
-        document.getElementById('sku-body').innerHTML = state.skus.map(s => `<tr><td><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td><td><input class="table-input" type="text" value="${s.desc || ''}" oninput="updateSku('${s.id}', 'desc', this.value)"></td><td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td><td><select class="table-input" onchange="updateSku('${s.id}', 'sla', this.value)">${SLAS.map(sla => `<option ${s.sla === sla ? 'selected' : ''}>${sla}</option>`).join('')}</select></td><td><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td><td><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td><td style="text-align:center;"><input type="checkbox" ${s.isBM ? 'checked' : ''} onchange="updateSku('${s.id}', 'isBM', this.checked)"></td><td><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none;">&times;</button></td></tr>`).join('');
+        document.getElementById('sku-body').innerHTML = state.skus.map(s => `<tr>
+            <td class="col-sku"><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td>
+            <td><input class="table-input" type="text" value="${s.desc || ''}" title="${s.desc || ''}" oninput="updateSku('${s.id}', 'desc', this.value)"></td>
+            <td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
+            <td><select class="table-input" onchange="updateSku('${s.id}', 'sla', this.value)">${SLAS.map(sla => `<option ${s.sla === sla ? 'selected' : ''}>${sla}</option>`).join('')}</select></td>
+            <td class="col-msrp"><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td>
+            <td class="col-disc"><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td>
+            <td class="col-bm"><input type="checkbox" ${s.isBM ? 'checked' : ''} onchange="updateSku('${s.id}', 'isBM', this.checked)"></td>
+            <td class="col-actions"><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none; cursor:pointer;">&times;</button></td>
+        </tr>`).join('');
         renderGlobalSummaries();
     }
 
@@ -579,13 +570,13 @@
             let body = ""; const grouped = {};
             data.rows.forEach(r => {
                 const k = `${r.ed}|${r.sla}`;
-                if(!grouped[k]) grouped[k] = { ed: r.ed, sla: r.sla, codes: [], price: 0 };
-                grouped[k].codes.push(`${r.code} (${r.qty})`); grouped[k].price += r.price;
+                if(!grouped[k]) grouped[k] = { ed: r.ed, sla: r.sla, codes: [], qtys: [], price: 0 };
+                grouped[k].codes.push(r.code); grouped[k].qtys.push(`${r.qty}${r.type ? ' ' + r.type : ''}`); grouped[k].price += r.price;
             });
             Object.values(grouped).forEach(g => {
-                body += `<tr><td><strong>${g.ed}</strong><br><small>${g.sla}</small></td><td>${g.codes.join('<br>')}</td><td>${fmt(g.price)}</td></tr>`;
+                body += `<tr><td><strong>${g.ed}</strong><br><small>${g.sla}</small></td><td>${g.codes.join('<br>')}</td><td style="padding: 10px 5px;">${g.qtys.join(' / ')}</td><td>${fmt(g.price)}</td></tr>`;
             });
-            return `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKUs (Qty)</th><th>Price</th></tr></thead><tbody>${body}</tbody></table>`;
+            return `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th style="min-width: 80px;">Qty</th><th>Price</th></tr></thead><tbody>${body}</tbody></table>`;
         };
 
         bom1Container.innerHTML = chartHtml + genTableHtml(opt1) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt1.total)}</span></div>` + (isOpt1Better && opt2.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(Math.abs(opt1.total - opt2.total))}</div>` : '');
