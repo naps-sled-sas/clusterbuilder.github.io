@@ -68,7 +68,7 @@
         .btn-outline { background: transparent; border: 1px solid var(--border); }
         .btn-success { background: var(--success); color: white; }
         .btn-info { background: #0066cc; color: white; }
-        .btn-reset { background: #444; color: white; } /* Reset button styling */
+        .btn-reset { background: #444; color: white; }
 
         .modal-overlay {
             display: none;
@@ -129,7 +129,7 @@
             position: absolute; left: 20px; top: 0; background: #333; color: #fff; padding: 8px; border-radius: 4px; width: 180px; font-size: 11px; z-index: 10; font-weight: normal; text-align: left;
         }
         
-        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for HA."; }
+        .tip-worker:hover::after { content: "A minimum of 2 worker nodes is required for application HA."; }
         .tip-cp:hover::after { content: "Quorum requires 3 or 5 Control Plane nodes."; }
         .tip-sub:hover::after { content: "Only worker/AI node cores require subscriptions."; }
         .tip-ai:hover::after { content: "Count of AI accelerators (e.g. GPUs)."; }
@@ -217,7 +217,7 @@
             <div style="display: flex; gap: 10px;">
                 <input type="file" id="csv-upload" accept=".csv" style="display: none;">
                 <button class="btn btn-success" onclick="document.getElementById('csv-upload').click()">Upload CSV</button>
-                <button class="btn btn-info" onclick="exportCSV()">Download CSV</button>
+                <button class="btn btn-info" onclick="exportCSV()">Download SKUs CSV</button>
             </div>
         </div>
         <table style="width:100%; border-collapse: collapse;" id="sku-table">
@@ -236,11 +236,17 @@
     <div id="clusters-wrapper"></div>
     <div class="global-summary-container">
         <div id="option-1-box" class="summary-box">
-            <h2>Option 1: 100% Core Based <span class="recommendation-badge">Best Value</span></h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+                <h2 style="margin:0; border:none;">Option 1: 100% Core Based <span class="recommendation-badge">Best Value</span></h2>
+                <button class="btn btn-outline" onclick="exportBOMToCSV(false)" style="font-size: 0.7rem;">Export to CSV</button>
+            </div>
             <div id="bom-1-container"></div>
         </div>
         <div id="option-2-box" class="summary-box">
-            <h2>Option 2: Physical Optimized (BM) <span class="recommendation-badge">Best Value</span></h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+                <h2 style="margin:0; border:none;">Option 2: Physical Optimized (BM) <span class="recommendation-badge">Best Value</span></h2>
+                <button class="btn btn-outline" onclick="exportBOMToCSV(true)" style="font-size: 0.7rem;">Export to CSV</button>
+            </div>
             <div id="bom-2-container"></div>
         </div>
     </div>
@@ -261,17 +267,16 @@
     };
 
     const getNewId = (prefix) => prefix + "_" + Math.random().toString(36).substr(2, 9);
-    const save = () => localStorage.setItem('os_v44_state', JSON.stringify(state));
+    const save = () => localStorage.setItem('os_v45_state', JSON.stringify(state));
 
     function load() {
         const urlParams = new URLSearchParams(window.location.search);
         const shared = urlParams.get('s');
         if (shared) try { state = JSON.parse(atob(shared)); } catch(e) {}
-        else { const saved = localStorage.getItem('os_v44_state'); if (saved) state = JSON.parse(saved); }
+        else { const saved = localStorage.getItem('os_v45_state'); if (saved) state = JSON.parse(saved); }
         render();
     }
 
-    // Reset Functionality logic
     document.getElementById('reset-btn').onclick = () => {
         if (confirm("Reset all clusters and nodes to default? (Product Configuration will be preserved)")) {
             state.clusters = [{ 
@@ -319,10 +324,14 @@
     function exportCSV() {
         let csvContent = "sku,edition,sla,msrp,discount,bm\n";
         state.skus.forEach(s => { csvContent += `${s.code || ''},${s.edition},${s.sla},${s.msrp},${s.discount},${s.isBM}\n`; });
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        downloadBlob(csvContent, "sku_configurations.csv");
+    }
+
+    function downloadBlob(content, filename) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.setAttribute("href", URL.createObjectURL(blob));
-        link.setAttribute("download", "product_configuration.csv");
+        link.setAttribute("download", filename);
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
@@ -369,118 +378,10 @@
     function updateSku(id, field, val) { const s = state.skus.find(s => s.id === id); if (s) s[field] = val; save(); renderGlobalSummaries(); }
     function deleteSku(id) { state.skus = state.skus.filter(s => s.id !== id); save(); render(); }
 
-    function render() {
-        const wrapper = document.getElementById('clusters-wrapper');
-        wrapper.innerHTML = '';
-
-        state.clusters.forEach(cluster => {
-            const cps = cluster.nodes.filter(n => n.isControlPlane).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
-            const infras = cluster.nodes.filter(n => n.isInfra).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
-            const ais = cluster.nodes.filter(n => n.isAI).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
-            const workers = cluster.nodes.filter(n => n.isWorker).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
-            
-            const totalPhysCores = cluster.nodes.filter(n => n.arch === 'Physical').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
-            const totalVirtCores = cluster.nodes.filter(n => n.arch === 'Virtual').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
-            const totalAiAcc = cluster.nodes.reduce((s, n) => s + (parseInt(n.aiAcc || 0) * parseInt(n.qty)), 0);
-            const totalAiCores = cluster.nodes.filter(n => n.isAI).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
-
-            const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
-            const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
-
-            const div = document.createElement('div');
-            div.className = `card cluster-card ${cluster.isCollapsed ? 'collapsed' : ''}`;
-            div.innerHTML = `
-                <div class="cluster-header">
-                    <div class="cluster-main-meta">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <button class="btn btn-outline" onclick="toggleCollapse('${cluster.id}')">${cluster.isCollapsed ? '▶' : '▼'}</button>
-                            <input type="text" class="cluster-name-input" value="${cluster.name}" onchange="updateCluster('${cluster.id}', 'name', this.value)">
-                        </div>
-                        ${!cluster.isCollapsed ? `<div style="display:flex; gap:10px; margin-top:5px;">
-                            <button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Node</button>
-                            <button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone</button>
-                            ${state.clusters.length > 1 ? `<button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete</button>` : ''}
-                        </div>` : ''}
-                    </div>
-                    <div class="cluster-controls">
-                        <label class="group-label">Edition</label>
-                        <select onchange="updateCluster('${cluster.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${cluster.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
-                        <label class="group-label">SLA</label>
-                        <select onchange="updateCluster('${cluster.id}', 'sla', this.value)">${SLAS.map(s => `<option ${cluster.sla === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
-                        <label class="group-label">Default Node Arch</label>
-                        <select onchange="updateCluster('${cluster.id}', 'defaultArch', this.value)"><option value="Physical" ${cluster.defaultArch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${cluster.defaultArch === 'Virtual' ? 'selected' : ''}>Virtual</option></select>
-                    </div>
-                    <table class="cluster-summary-table">
-                        <tr class="${(workers + ais) < 2 ? 'alert-text' : ''}"><th>Workers / AI / Infra <span class="tooltip tip-worker">i</span></th><td>${workers} / ${ais} / ${infras}</td></tr>
-                        <tr class="${(cps !== 3 && cps !== 5) ? 'alert-text' : ''}"><th>Control Planes <span class="tooltip tip-cp">i</span></th><td>${cps}</td></tr>
-                        <tr><th>Total physical cores</th><td>${totalPhysCores}</td></tr>
-                        <tr><th>Total virtual cores</th><td>${totalVirtCores}</td></tr>
-                        <tr><th>Total AI Accelerators</th><td>${totalAiAcc}</td></tr>
-                        <tr><th>OpenShift AI cores</th><td>${totalAiCores}</td></tr>
-                        <tr class="highlight-row"><th>Ent. Physical Cores <span class="tooltip tip-sub">i</span></th><td>${entPhys}</td></tr>
-                        <tr class="highlight-row"><th>Ent. Virtual Cores <span class="tooltip tip-sub">i</span></th><td>${entVirt}</td></tr>
-                    </table>
-                </div>
-                <div class="node-grid"></div>
-            `;
-            
-            const grid = div.querySelector('.node-grid');
-            cluster.nodes.forEach(node => {
-                const nodeEl = document.createElement('div');
-                nodeEl.className = 'node-card' + (node.isControlPlane ? ' is-cp' : '') + (parseInt(node.aiAcc) > 0 ? ' has-gpu' : '');
-                nodeEl.innerHTML = `
-                    <div class="node-actions"><button onclick="deleteNode('${cluster.id}', '${node.id}')">&times;</button></div>
-                    <div class="node-header">
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="1"></rect><rect x="2" y="14" width="20" height="8" rx="1"></rect></svg>
-                        <div class="gpu-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h16M4 14h16M10 4v4M14 4v4M10 16v4M14 16v4M4 8h1v8H4zM19 8h1v8h-1z"></path></svg></div>
-                        <div style="font-size: 0.6rem; font-weight: bold; margin-top: 2px;">${node.isAI ? 'AI NODE' : node.isControlPlane ? 'CONTROL PLANE' : 'NODE'}</div>
-                    </div>
-                    <div class="node-body">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <div class="node-input-group"><label class="group-label">Qty</label><input type="number" value="${node.qty || 1}" min="1" onchange="updateNode('${cluster.id}', '${node.id}', 'qty', this.value)"></div>
-                            <div class="node-input-group"><label class="group-label">Cores</label><input type="number" value="${node.cores}" step="2" onchange="updateNode('${cluster.id}', '${node.id}', 'cores', this.value)"></div>
-                        </div>
-                        <div class="node-input-group">
-                            <label class="group-label">Roles</label>
-                            <div class="roles-container">
-                                <label class="role-option">Worker <input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"></label>
-                                <label class="role-option">AI <input type="checkbox" ${node.isAI ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isAI', this.checked)"></label>
-                                <label class="role-option">Infra <input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"></label>
-                                <label class="role-option">Control Plane <input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"></label>
-                            </div>
-                        </div>
-                        <div class="node-input-group"><label class="group-label">AI Acc. <span class="tooltip tip-ai">i</span></label><input type="number" value="${node.aiAcc || 0}" min="0" onchange="updateNode('${cluster.id}', '${node.id}', 'aiAcc', this.value)"></div>
-                        <div class="node-input-group"><label class="group-label">Arch</label><select onchange="updateNode('${cluster.id}', '${node.id}', 'arch', this.value)"><option value="Physical" ${node.arch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${node.arch === 'Virtual' ? 'selected' : ''}>Virtual</option></select></div>
-                        <div class="node-input-group"><label class="group-label">Notes</label><textarea onchange="updateNode('${cluster.id}', '${node.id}', 'notes', this.value)">${node.notes || ""}</textarea></div>
-                    </div>
-                `;
-                grid.appendChild(nodeEl);
-            });
-            wrapper.appendChild(div);
-        });
-
-        document.getElementById('sku-body').innerHTML = state.skus.map(s => `<tr>
-            <td><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td>
-            <td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
-            <td><select class="table-input" onchange="updateSku('${s.id}', 'sla', this.value)">${SLAS.map(sla => `<option ${s.sla === sla ? 'selected' : ''}>${sla}</option>`).join('')}</select></td>
-            <td><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td>
-            <td><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td>
-            <td style="text-align:center;"><input type="checkbox" ${s.isBM ? 'checked' : ''} onchange="updateSku('${s.id}', 'isBM', this.checked)"></td>
-            <td><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none;">&times;</button></td>
-        </tr>`).join('');
-        
-        renderGlobalSummaries();
-    }
-
-    function renderGlobalSummaries() {
-        const bom1Container = document.getElementById('bom-1-container');
-        const bom2Container = document.getElementById('bom-2-container');
+    function calculateBOMData(isOpt2) {
         const summaryData = {};
-        let totalPhysAll = 0, totalVirtAll = 0;
         let globalAiAccTotal = { Standard: 0, Premium: 0 };
         let globalAiSubscriptionUnits = { Standard: { physNodes: 0, physCores: 0, virtCores: 0 }, Premium: { physNodes: 0, physCores: 0, virtCores: 0 } };
-
-        EDITIONS.forEach(ed => { SLAS.forEach(sla => { summaryData[`${ed}|${sla}`] = { physNodes: 0, physCores: 0, virtCores: 0 }; }); });
 
         state.clusters.forEach(c => {
             const key = `${c.edition}|${c.sla}`;
@@ -488,9 +389,6 @@
             c.nodes.forEach(n => {
                 const nQty = parseInt(n.qty) || 1, nCores = parseInt(n.cores) || 0, nAiAcc = parseInt(n.aiAcc) || 0;
                 
-                if (n.arch === 'Physical') totalPhysAll += (nCores * nQty);
-                else totalVirtAll += (nCores * nQty);
-
                 globalAiAccTotal[c.sla] += (nAiAcc * nQty);
                 if (n.isAI) {
                     if (n.arch === 'Physical') { globalAiSubscriptionUnits[c.sla].physCores += (nCores * nQty); globalAiSubscriptionUnits[c.sla].physNodes += nQty; }
@@ -504,78 +402,173 @@
             });
         });
 
-        const grandTotalCores = totalPhysAll + totalVirtAll;
-        const physPct = grandTotalCores > 0 ? (totalPhysAll / grandTotalCores * 100) : 0;
-        const virtPct = grandTotalCores > 0 ? (totalVirtAll / grandTotalCores * 100) : 0;
+        const exportRows = [];
+        let totalNet = 0;
 
-        const chartHtml = `
-            <div class="distribution-chart">
-                <div class="dist-bar dist-phys" style="width: ${physPct}%">${physPct > 12 ? 'Phys' : ''}</div>
-                <div class="dist-bar dist-virt" style="width: ${virtPct}%">${virtPct > 12 ? 'Virt' : ''}</div>
-            </div>
-            <div class="chart-legend">
-                <div class="legend-item"><div class="legend-box dist-phys"></div> Physical Cores (${totalPhysAll})</div>
-                <div class="legend-item"><div class="legend-box dist-virt"></div> Virtual Cores (${totalVirtAll})</div>
-            </div>`;
-
-        const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
-
-        const generateBOM = (isOpt2) => {
-            let html = chartHtml + `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
-            let totalNet = 0;
-
-            Object.keys(summaryData).forEach(key => {
-                const [ed, sla] = key.split('|'), d = summaryData[key];
-                if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
-                const skuV = state.skus.find(s => s.edition === ed && s.sla === sla && !s.isBM);
-                const skuBM = state.skus.find(s => s.edition === ed && s.sla === sla && s.isBM);
-                let rowPrice = 0, rowQty = "", rowCodes = "";
-                if (isOpt2) {
-                    const qV = Math.ceil(d.virtCores / 4);
-                    if (skuBM) rowPrice += d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
-                    if (skuV) rowPrice += qV * (skuV.msrp * (1 - (skuV.discount / 100)));
-                    rowQty = `${d.physNodes} BM / ${qV} V`; rowCodes = `${skuBM ? skuBM.code : 'No BM'}<br>${skuV ? skuV.code : 'No V'}`;
-                } else {
-                    const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
-                    if (skuV) rowPrice = qTotal * (skuV.msrp * (1 - (skuV.discount / 100)));
-                    rowQty = qTotal; rowCodes = skuV ? skuV.code : 'Missing SKU';
-                }
-                totalNet += rowPrice;
-                html += `<tr><td><strong>${ed}</strong><br><small>${sla}</small></td><td>${rowCodes}</td><td>${rowQty}</td><td>${fmt(rowPrice)}</td></tr>`;
-            });
-
-            SLAS.forEach(sla => {
-                if (globalAiAccTotal[sla] > 0) {
-                    const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
-                    const price = sku ? globalAiAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100))) : 0;
+        // Base Core calculation
+        Object.keys(summaryData).forEach(key => {
+            const [ed, sla] = key.split('|'), d = summaryData[key];
+            if (ed === "OpenShift AI" || ed === "AI Accelerator" || (d.physCores === 0 && d.virtCores === 0)) return;
+            const skuV = state.skus.find(s => s.edition === ed && s.sla === sla && !s.isBM);
+            const skuBM = state.skus.find(s => s.edition === ed && s.sla === sla && s.isBM);
+            
+            if (isOpt2) {
+                const qV = Math.ceil(d.virtCores / 4);
+                if (skuBM && d.physNodes > 0) {
+                    const price = d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
+                    exportRows.push({ ed, sla, code: skuBM.code, qty: d.physNodes, price, msrp: skuBM.msrp, disc: skuBM.discount });
                     totalNet += price;
-                    html += `<tr style="background:#f3f0ff"><td><strong>AI Accelerator</strong><br><small>${sla}</small></td><td>${sku ? sku.code : 'Missing'}</td><td>${globalAiAccTotal[sla]}</td><td>${fmt(price)}</td></tr>`;
                 }
-            });
-
-            SLAS.forEach(sla => {
-                const d = globalAiSubscriptionUnits[sla];
-                if (d.physCores === 0 && d.virtCores === 0) return;
-                const skuV = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && !s.isBM);
-                const skuBM = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && s.isBM);
-                let rowPrice = 0, rowQty = "", rowCodes = "";
-                if (isOpt2) {
-                    const qV = Math.ceil(d.virtCores / 4);
-                    if (skuBM) rowPrice += d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
-                    if (skuV) rowPrice += qV * (skuV.msrp * (1 - (skuV.discount / 100)));
-                    rowQty = `${d.physNodes} BM / ${qV} V`; rowCodes = `${skuBM ? skuBM.code : 'No BM'}<br>${skuV ? skuV.code : 'No V'}`;
-                } else {
-                    const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
-                    if (skuV) rowPrice = qTotal * (skuV.msrp * (1 - (skuV.discount / 100)));
-                    rowQty = qTotal; rowCodes = skuV ? skuV.code : 'Missing';
+                if (skuV && qV > 0) {
+                    const price = qV * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    exportRows.push({ ed, sla, code: skuV.code, qty: qV, price, msrp: skuV.msrp, disc: skuV.discount });
+                    totalNet += price;
                 }
-                totalNet += rowPrice;
-                html += `<tr style="background:#f3f0ff"><td><strong>OpenShift AI</strong><br><small>${sla}</small></td><td>${rowCodes}</td><td>${rowQty}</td><td>${fmt(rowPrice)}</td></tr>`;
-            });
-            return { html: html + `</tbody></table>`, total: totalNet };
-        };
+            } else {
+                const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
+                const price = skuV ? qTotal * (skuV.msrp * (1 - (skuV.discount / 100))) : 0;
+                if (price > 0) {
+                    exportRows.push({ ed, sla, code: skuV.code, qty: qTotal, price, msrp: skuV.msrp, disc: skuV.discount });
+                    totalNet += price;
+                }
+            }
+        });
 
-        const opt1 = generateBOM(false), opt2 = generateBOM(true);
+        // AI Accelerator
+        SLAS.forEach(sla => {
+            if (globalAiAccTotal[sla] > 0) {
+                const sku = state.skus.find(s => s.edition === "AI Accelerator" && s.sla === sla);
+                if(sku) {
+                   const price = globalAiAccTotal[sla] * (sku.msrp * (1 - (sku.discount / 100)));
+                   exportRows.push({ ed: "AI Accelerator", sla, code: sku.code, qty: globalAiAccTotal[sla], price, msrp: sku.msrp, disc: sku.discount });
+                   totalNet += price;
+                }
+            }
+        });
+
+        // OpenShift AI Subscriptions
+        SLAS.forEach(sla => {
+            const d = globalAiSubscriptionUnits[sla];
+            if (d.physCores === 0 && d.virtCores === 0) return;
+            const skuV = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && !s.isBM);
+            const skuBM = state.skus.find(s => s.edition === "OpenShift AI" && s.sla === sla && s.isBM);
+            if (isOpt2) {
+                const qV = Math.ceil(d.virtCores / 4);
+                if (skuBM && d.physNodes > 0) {
+                    const price = d.physNodes * (skuBM.msrp * (1 - (skuBM.discount / 100)));
+                    exportRows.push({ ed: "OpenShift AI", sla, code: skuBM.code, qty: d.physNodes, price, msrp: skuBM.msrp, disc: skuBM.discount });
+                    totalNet += price;
+                }
+                if (skuV && qV > 0) {
+                    const price = qV * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    exportRows.push({ ed: "OpenShift AI", sla, code: skuV.code, qty: qV, price, msrp: skuV.msrp, disc: skuV.discount });
+                    totalNet += price;
+                }
+            } else {
+                const qTotal = Math.ceil(d.physCores / 2) + Math.ceil(d.virtCores / 4);
+                if (skuV && qTotal > 0) {
+                    const price = qTotal * (skuV.msrp * (1 - (skuV.discount / 100)));
+                    exportRows.push({ ed: "OpenShift AI", sla, code: skuV.code, qty: qTotal, price, msrp: skuV.msrp, disc: skuV.discount });
+                    totalNet += price;
+                }
+            }
+        });
+        return { exportRows, total: totalNet };
+    }
+
+    function exportBOMToCSV(isOpt2) {
+        const data = calculateBOMData(isOpt2);
+        let csv = "Edition,SLA,SKU Code,Quantity,Unit MSRP,Discount (%),Net Price\n";
+        data.exportRows.forEach(r => { 
+            csv += `"${r.ed}","${r.sla}","${r.code}",${r.qty},${r.msrp},${r.disc},${r.price}\n`; 
+        });
+        csv += `,,,,,,${data.total}\n`;
+        downloadBlob(csv, `BOM_Option_${isOpt2 ? '2' : '1'}.csv`);
+    }
+
+    function render() {
+        const wrapper = document.getElementById('clusters-wrapper');
+        wrapper.innerHTML = '';
+        state.clusters.forEach(cluster => {
+            const cps = cluster.nodes.filter(n => n.isControlPlane).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const infras = cluster.nodes.filter(n => n.isInfra).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const ais = cluster.nodes.filter(n => n.isAI).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const workers = cluster.nodes.filter(n => n.isWorker).reduce((s, n) => s + (parseInt(n.qty) || 0), 0);
+            const tPhys = cluster.nodes.filter(n => n.arch === 'Physical').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
+            const tVirt = cluster.nodes.filter(n => n.arch === 'Virtual').reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
+            const tAiAcc = cluster.nodes.reduce((s, n) => s + (parseInt(n.aiAcc || 0) * parseInt(n.qty)), 0);
+            const tAiCores = cluster.nodes.filter(n => n.isAI).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
+            const entPhys = cluster.nodes.filter(n => n.arch === 'Physical' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
+            const entVirt = cluster.nodes.filter(n => n.arch === 'Virtual' && (n.isWorker || n.isAI)).reduce((s, n) => s + (parseInt(n.cores) * parseInt(n.qty)), 0);
+            
+            const div = document.createElement('div');
+            div.className = `card cluster-card ${cluster.isCollapsed ? 'collapsed' : ''}`;
+            div.innerHTML = `
+                <div class="cluster-header">
+                    <div class="cluster-main-meta">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button class="btn btn-outline" onclick="toggleCollapse('${cluster.id}')">${cluster.isCollapsed ? '▶' : '▼'}</button>
+                            <input type="text" class="cluster-name-input" value="${cluster.name}" onchange="updateCluster('${cluster.id}', 'name', this.value)">
+                        </div>
+                        ${!cluster.isCollapsed ? `<div style="display:flex; gap:10px; margin-top:5px;"><button class="btn btn-primary" onclick="addNode('${cluster.id}')">+ Node</button><button class="btn btn-outline" onclick="cloneCluster('${cluster.id}')">Clone</button><button class="btn btn-outline" style="color:red;" onclick="deleteCluster('${cluster.id}')">Delete</button></div>` : ''}
+                    </div>
+                    <div class="cluster-controls">
+                        <label class="group-label">Edition</label><select onchange="updateCluster('${cluster.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${cluster.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
+                        <label class="group-label">SLA</label><select onchange="updateCluster('${cluster.id}', 'sla', this.value)">${SLAS.map(s => `<option ${cluster.sla === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+                        <label class="group-label">Default Node Arch</label><select onchange="updateCluster('${cluster.id}', 'defaultArch', this.value)"><option value="Physical" ${cluster.defaultArch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${cluster.defaultArch === 'Virtual' ? 'selected' : ''}>Virtual</option></select>
+                    </div>
+                    <table class="cluster-summary-table">
+                        <tr class="${(workers + ais) < 2 ? 'alert-text' : ''}"><th>Workers / AI / Infra <span class="tooltip tip-worker">i</span></th><td>${workers} / ${ais} / ${infras}</td></tr>
+                        <tr class="${(cps !== 3 && cps !== 5) ? 'alert-text' : ''}"><th>Control Planes <span class="tooltip tip-cp">i</span></th><td>${cps}</td></tr>
+                        <tr><th>Total physical cores</th><td>${tPhys}</td></tr><tr><th>Total virtual cores</th><td>${tVirt}</td></tr><tr><th>Total AI Accelerators</th><td>${tAiAcc}</td></tr><tr><th>OpenShift AI cores</th><td>${tAiCores}</td></tr>
+                        <tr class="highlight-row"><th>Ent. Physical Cores <span class="tooltip tip-sub">i</span></th><td>${entPhys}</td></tr><tr class="highlight-row"><th>Ent. Virtual Cores <span class="tooltip tip-sub">i</span></th><td>${entVirt}</td></tr>
+                    </table>
+                </div>
+                <div class="node-grid"></div>`;
+            const grid = div.querySelector('.node-grid');
+            cluster.nodes.forEach(node => {
+                const nodeEl = document.createElement('div');
+                nodeEl.className = 'node-card' + (node.isControlPlane ? ' is-cp' : '') + (parseInt(node.aiAcc) > 0 ? ' has-gpu' : '');
+                nodeEl.innerHTML = `
+                    <div class="node-actions"><button onclick="deleteNode('${cluster.id}', '${node.id}')">&times;</button></div>
+                    <div class="node-header">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="1"></rect><rect x="2" y="14" width="20" height="8" rx="1"></rect></svg>
+                        <div class="gpu-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h16M4 14h16M10 4v4M14 4v4M10 16v4M14 16v4M4 8h1v8H4zM19 8h1v8h-1z"></path></svg></div>
+                        <div style="font-size: 0.6rem; font-weight: bold; margin-top: 2px;">${node.isAI ? 'AI NODE' : node.isControlPlane ? 'CONTROL PLANE' : 'NODE'}</div>
+                    </div>
+                    <div class="node-body">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;"><div class="node-input-group"><label class="group-label">Qty</label><input type="number" value="${node.qty || 1}" min="1" onchange="updateNode('${cluster.id}', '${node.id}', 'qty', this.value)"></div><div class="node-input-group"><label class="group-label">Cores</label><input type="number" value="${node.cores}" step="2" onchange="updateNode('${cluster.id}', '${node.id}', 'cores', this.value)"></div></div>
+                        <div class="node-input-group"><label class="group-label">Roles</label><div class="roles-container"><label class="role-option">Worker <input type="checkbox" ${node.isWorker ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isWorker', this.checked)"></label><label class="role-option">AI <input type="checkbox" ${node.isAI ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isAI', this.checked)"></label><label class="role-option">Infra <input type="checkbox" ${node.isInfra ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isInfra', this.checked)"></label><label class="role-option">Control Plane <input type="checkbox" ${node.isControlPlane ? 'checked' : ''} onchange="updateNode('${cluster.id}', '${node.id}', 'isControlPlane', this.checked)"></label></div></div>
+                        <div class="node-input-group"><label class="group-label">AI Acc. <span class="tooltip tip-ai">i</span></label><input type="number" value="${node.aiAcc || 0}" min="0" onchange="updateNode('${cluster.id}', '${node.id}', 'aiAcc', this.value)"></div>
+                        <div class="node-input-group"><label class="group-label">Arch</label><select onchange="updateNode('${cluster.id}', '${node.id}', 'arch', this.value)"><option value="Physical" ${node.arch === 'Physical' ? 'selected' : ''}>Physical</option><option value="Virtual" ${node.arch === 'Virtual' ? 'selected' : ''}>Virtual</option></select></div>
+                        <div class="node-input-group"><label class="group-label">Notes</label><textarea onchange="updateNode('${cluster.id}', '${node.id}', 'notes', this.value)">${node.notes || ""}</textarea></div>
+                    </div>`;
+                grid.appendChild(nodeEl);
+            });
+            wrapper.appendChild(div);
+        });
+        document.getElementById('sku-body').innerHTML = state.skus.map(s => `<tr><td><input class="table-input" type="text" value="${s.code || ''}" oninput="updateSku('${s.id}', 'code', this.value)"></td><td><select class="table-input" onchange="updateSku('${s.id}', 'edition', this.value)">${EDITIONS.map(e => `<option ${s.edition === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td><td><select class="table-input" onchange="updateSku('${s.id}', 'sla', this.value)">${SLAS.map(sla => `<option ${s.sla === sla ? 'selected' : ''}>${sla}</option>`).join('')}</select></td><td><input class="table-input" type="number" value="${s.msrp || 0}" oninput="updateSku('${s.id}', 'msrp', parseFloat(this.value) || 0)"></td><td><input class="table-input" type="number" value="${s.discount || 0}" oninput="updateSku('${s.id}', 'discount', parseFloat(this.value) || 0)"></td><td style="text-align:center;"><input type="checkbox" ${s.isBM ? 'checked' : ''} onchange="updateSku('${s.id}', 'isBM', this.checked)"></td><td><button onclick="deleteSku('${s.id}')" style="color:red; background:none; border:none;">&times;</button></td></tr>`).join('');
+        renderGlobalSummaries();
+    }
+
+    function renderGlobalSummaries() {
+        const bom1Container = document.getElementById('bom-1-container');
+        const bom2Container = document.getElementById('bom-2-container');
+        let tPhysAll = 0, tVirtAll = 0;
+        state.clusters.forEach(c => {
+            c.nodes.forEach(n => {
+                const nQty = parseInt(n.qty) || 1, nCores = parseInt(n.cores) || 0;
+                if (n.arch === 'Physical') tPhysAll += (nCores * nQty);
+                else tVirtAll += (nCores * nQty);
+            });
+        });
+        const grandTotalCores = tPhysAll + tVirtAll;
+        const physPct = grandTotalCores > 0 ? (tPhysAll / grandTotalCores * 100) : 0;
+        const virtPct = grandTotalCores > 0 ? (tVirtAll / grandTotalCores * 100) : 0;
+        const chartHtml = `<div class="distribution-chart"><div class="dist-bar dist-phys" style="width: ${physPct}%">${physPct > 12 ? 'Phys' : ''}</div><div class="dist-bar dist-virt" style="width: ${virtPct}%">${virtPct > 12 ? 'Virt' : ''}</div></div><div class="chart-legend"><div class="legend-item"><div class="legend-box dist-phys"></div> Physical Cores (${tPhysAll})</div><div class="legend-item"><div class="legend-box dist-virt"></div> Virtual Cores (${tVirtAll})</div></div>`;
+        const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
+        
+        const opt1 = calculateBOMData(false), opt2 = calculateBOMData(true);
         const savings = Math.abs(opt1.total - opt2.total);
         const isOpt1Better = opt1.total > 0 && (opt2.total <= 0 || opt1.total < opt2.total);
         const isOpt2Better = opt2.total > 0 && (opt1.total <= 0 || opt2.total < opt1.total);
@@ -583,8 +576,22 @@
         document.getElementById('option-1-box').className = 'summary-box' + (isOpt1Better ? ' recommended' : '');
         document.getElementById('option-2-box').className = 'summary-box' + (isOpt2Better ? ' recommended' : '');
 
-        bom1Container.innerHTML = opt1.html + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt1.total)}</span></div>` + (isOpt1Better && opt2.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
-        bom2Container.innerHTML = opt2.html + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt2.total)}</span></div>` + (isOpt2Better && opt1.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
+        const genTableHtml = (data) => {
+            let body = "";
+            const grouped = {};
+            data.exportRows.forEach(r => {
+                const k = `${r.ed}|${r.sla}`;
+                if(!grouped[k]) grouped[k] = { ed: r.ed, sla: r.sla, codes: [], qtys: [], price: 0 };
+                grouped[k].codes.push(r.code); grouped[k].qtys.push(r.qty); grouped[k].price += r.price;
+            });
+            Object.values(grouped).forEach(g => {
+                body += `<tr><td><strong>${g.ed}</strong><br><small>${g.sla}</small></td><td>${g.codes.join('<br>')}</td><td style="padding: 10px 5px;">${g.qtys.join(' / ')}</td><td>${fmt(g.price)}</td></tr>`;
+            });
+            return `<table class="bom-table"><thead><tr><th>Ed / SLA</th><th>SKU</th><th style="min-width: 80px;">Qty</th><th>Price</th></tr></thead><tbody>${body}</tbody></table>`;
+        };
+
+        bom1Container.innerHTML = chartHtml + genTableHtml(opt1) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt1.total)}</span></div>` + (isOpt1Better && opt2.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
+        bom2Container.innerHTML = chartHtml + genTableHtml(opt2) + `<div class="total-row" style="padding:10px; border: 1px solid var(--border); border-top:none; display:flex; justify-content:space-between"><span>Total Net:</span><span>${fmt(opt2.total)}</span></div>` + (isOpt2Better && opt1.total > 0 ? `<div class="savings-callout">Est. Savings: ${fmt(savings)}</div>` : '');
     }
 
     document.getElementById('add-cluster-btn').onclick = addCluster;
